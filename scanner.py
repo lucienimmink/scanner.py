@@ -5,12 +5,10 @@
 import os, fnmatch, json, sys, codecs, time, eyed3
 
 rootpath = r"/volume1/music/"
-#rootpath = r"C:\\Users\\lucien\\Dropbox\\addasoft\\Workspace\\testmusic"
-#rootpath = r"d:\\music"
+f = codecs.open('/volume1/web/music/music.json', 'w', "utf-8")
 artists = dict()
 albums = dict()
 jsonFile = list()
-f = codecs.open('/volume1/web/music/music.json', 'w', "utf-8")
 nrScanned = 0
 total_files = 0
 totalArtist = 0
