@@ -99,12 +99,12 @@ def ums(i, ignoreZero=True):
     if (seconds < 10):
         seconds = "0" + str(seconds)
     if (ignoreZero):
-	if (hours == "00"):
-	    hours = ""
-	else:
-	    hours = hours + ":"
+    if (hours == "00"):
+        hours = ""
     else:
-	hours = hours + ":"
+        hours = hours + ":"
+    else:
+    hours = hours + ":"
     return hours + str(minutes) + ":" + str(seconds)
 def totals():
     return "{ \"totals\" : { \"artists\":" + str(totalArtist) + ", \"albums\":" + str(totalAlbums) + ", \"tracks\":" + str(nrScanned) + ", \"playingTime\":" + str(totalTime) + ", \"timestamp\":" + str(int(time.time())) +  "}}" 
