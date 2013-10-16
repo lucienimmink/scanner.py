@@ -23,7 +23,7 @@ class Artist:
         else:
             self.Artiest = ""
     def toString (self):
-        return u"{\"Naam\":\"" + self.Artiest + "\",\"Titel\":\"\",\"Artiest\":\"\",\"Album\":\"\",\"Track\":null,\"Jaar\":null}"
+        return u"{\"Naam\":\"" + self.Artiest + "\",\"Titel\":\"\",\"Artiest\":\"\",\"Album\":\"\",\"Track\":null,\"Jaar\":null, \"Type\":\"artist\"}"
     
 class Album:
     def __init__ (self, file):
@@ -40,7 +40,7 @@ class Album:
         else:
             self.Jaar = "null"
     def toString (self):
-        return u"{\"Naam\":\"" + self.Artiest + " - " + self.Album + "\",\"Titel\":\"\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":null,\"Jaar\":\""+self.Jaar+"\"}"
+        return u"{\"Naam\":\"" + self.Artiest + " - " + self.Album + "\",\"Titel\":\"\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":null,\"Jaar\":\""+self.Jaar+"\", \"Type\":\"album\"}"
     
 class Track:
     def __init__ (self, file, path):
@@ -75,7 +75,7 @@ class Track:
         
         
     def toString (self):
-        return u"{\"Pad\":\"" + self.Pad + "\",\"Titel\":\"" + self.Titel + "\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":\""+self.Track+"\",\"Jaar\":\""+self.Jaar+"\",\"U:M:S\":\""+self.Duur+"\",\"Disk\":\""+self.Disk+"\"}"
+        return u"{\"Pad\":\"" + self.Pad + "\",\"Titel\":\"" + self.Titel + "\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":\""+self.Track+"\",\"Jaar\":\""+self.Jaar+"\",\"U:M:S\":\""+self.Duur+"\",\"Disk\":\""+self.Disk+"\", \"Type\":\"track\"}"
     def time(self):
         return self.seconds
 
@@ -107,7 +107,7 @@ def ums(i, ignoreZero=True):
     hours = hours + ":"
     return hours + str(minutes) + ":" + str(seconds)
 def totals():
-    return "{ \"totals\" : { \"artists\":" + str(totalArtist) + ", \"albums\":" + str(totalAlbums) + ", \"tracks\":" + str(nrScanned) + ", \"playingTime\":" + str(totalTime) + ", \"timestamp\":" + str(int(time.time())) +  "}}" 
+    return "{ \"totals\" : { \"artists\":" + str(totalArtist) + ", \"albums\":" + str(totalAlbums) + ", \"tracks\":" + str(nrScanned) + ", \"playingTime\":" + str(totalTime) + ", \"timestamp\":" + str(int(time.time())) +  "}, \"Type\":\"totals\"}" 
 def _force_unicode(bstr, encoding, fallback_encodings=None):
     """Force unicode, ignore unknown.
     
