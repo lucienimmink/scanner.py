@@ -6,7 +6,6 @@
 *.so
 
 # Packages
-*.egg
 *.egg-info
 dist
 build
