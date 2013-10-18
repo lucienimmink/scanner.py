@@ -2,13 +2,48 @@
 # -*- coding: utf8 -*-
 """ This program is made possible by the awesome python knowledge of my darling Ivana <3 for ever """
 
-import os, fnmatch, json, sys, codecs, time, eyed3
+import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging
 
-rootpath = r"/volume1/music/"
-f = codecs.open('/volume1/web/music/music.json', 'w', "utf-8")
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileModifiedEvent
+from watchdog.events import LoggingEventHandler
+
+parser = argparse.ArgumentParser(description='Scans a given directory for MP3\'s and places the output file in an optional directory');
+parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
+parser.add_argument('--destpath', metavar='destination path', help='directory to place the output json in')
+args = parser.parse_args()
+
+rootpath = args.scanpath
+destpath = args.destpath or args.scanpath
+
+class my_handler(FileSystemEventHandler): 
+    def __init__(self): 
+        FileSystemEventHandler.__init__(self) 
+
+    def on_any_event(self, event): 
+        if type(event) == FileModifiedEvent:
+            # file modified (added or updated)
+            if (event.src_path.find(".mp3") ):
+                time.sleep(0.1)
+                parseFile(event.src_path, increment, False)
+                inc = codecs.open(destpath + '/increment.json', 'w', "utf-8")
+                increment.append("{\"ts\":" + str(int(time.time()))  + ", \"Type\": \"ts\"}");
+                inc.write("[" + ",\n".join(increment) + "]")
+                inc.close()
+
+
+""" logging """
+logging.basicConfig(filename='scanner.log', level=logging.DEBUG)
+
+f = codecs.open(destpath + '/music.json', 'w', "utf-8")
+inc = codecs.open(destpath + '/increment.json', 'w', "utf-8")
+inc.close()
+
 artists = dict()
 albums = dict()
 jsonFile = list()
+increment = list()
 nrScanned = 0
 total_files = 0
 totalArtist = 0
@@ -99,40 +134,16 @@ def ums(i, ignoreZero=True):
     if (seconds < 10):
         seconds = "0" + str(seconds)
     if (ignoreZero):
-    if (hours == "00"):
-        hours = ""
+        if (hours == "00"):
+            hours = ""
+        else:
+            hours = hours + ":"
     else:
         hours = hours + ":"
-    else:
-    hours = hours + ":"
     return hours + str(minutes) + ":" + str(seconds)
 def totals():
     return "{ \"totals\" : { \"artists\":" + str(totalArtist) + ", \"albums\":" + str(totalAlbums) + ", \"tracks\":" + str(nrScanned) + ", \"playingTime\":" + str(totalTime) + ", \"timestamp\":" + str(int(time.time())) +  "}, \"Type\":\"totals\"}" 
 def _force_unicode(bstr, encoding, fallback_encodings=None):
-    """Force unicode, ignore unknown.
-    
-    Forces the given string to unicode with first guessing, then forcing by
-    using given encoding and ignoring unknown characters. This is sadly many
-    times necessary, since there usually are only pieces of string without 
-    proper encoding, such as file system file names where usually any bytes
-    are accepted as filenames.
-    
-    :param bstr: String
-    :type bstr: Basestring
-    
-    :param encoding: Assumed encoding, notice that by giving encoding that can
-        decode all 8-bit characters such as ISO-8859-1 you effectively may be
-        decoding all string regardless were they in that encoding or not.
-    :type encoding: string
-    
-    :param fallback_encodings: Fallback on trying these encodings if not the
-        assumed encoding.
-    :type fallback_encodings: list of string
-    
-    :return: Unicoded given string
-    :rtype: unicode string
-    
-    """
     # We got unicode, we give unicode
     if isinstance(bstr, unicode):
         return bstr
@@ -151,10 +162,13 @@ def _force_unicode(bstr, encoding, fallback_encodings=None):
     # Finally, force the unicode
     return bstr.decode(encoding, 'ignore')
 
-allfiles = find_files(rootpath, '*.mp3')
-countfiles = sum(1 for e in allfiles)
-print "Starting scan for",countfiles,"mp3 files in '" + rootpath + "'"
-for filename in find_files(rootpath, '*.mp3'):
+def parseFile(filename, jsonFile, showInfo=True):
+    global artists
+    global albums
+    global totalArtist
+    global totalAlbums
+    global totalTime
+    global nrScanned
     
     song = eyed3.load(filename)
     if song is not None:
@@ -179,7 +193,7 @@ for filename in find_files(rootpath, '*.mp3'):
             totalTime = totalTime + track.seconds
             nrScanned = nrScanned + 1
             perc = int((float(float(nrScanned) / float(countfiles))) * 100)
-            if (countfiles > 100 and nrScanned % int(countfiles/100) == 0):
+            if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
                 inc = time.time()
                 #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
                 diff = inc-start
@@ -189,8 +203,29 @@ for filename in find_files(rootpath, '*.mp3'):
                     sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
                     sys.stdout.flush()
             jsonFile.append(track.toString())
+
+
+allfiles = find_files(rootpath, '*.mp3')
+countfiles = sum(1 for e in allfiles)
+print "Starting scan for",countfiles,"mp3 files in '" + rootpath + "'"
+logging.info("Starting scan for",countfiles,"mp3 files in '" + rootpath + "'")
+for filename in find_files(rootpath, '*.mp3'):
+    parseFile(filename, jsonFile)
 jsonFile.append(totals())    
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
 inc = time.time()
 print "Done scanning, time taken:", ums(inc-start, False)
+logging.info("Done scanning, time taken:", ums(inc-start, False))
+
+# continue scanning for new files; place them in the incremental file
+event_handler = my_handler()
+observer = Observer()
+observer.schedule(event_handler, path=rootpath, recursive=True)
+observer.start()
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    observer.stop()
+observer.join()
