@@ -180,6 +180,7 @@ def parseFile(filename, jsonFile, showInfo=True):
     song = eyed3.load(filename)
     if song is not None:
         if song.tag is not None:
+            #print "parse " + filename
             if song.tag.artist not in artists:
                 artist = Artist(song)
                 jsonFile.append(artist.toString())
