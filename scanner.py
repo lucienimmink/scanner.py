@@ -24,14 +24,21 @@ class my_handler(FileSystemEventHandler):
     def on_any_event(self, event): 
         if type(event) == FileModifiedEvent:
             # file modified (added or updated)
-            if (event.src_path.find(".mp3") ):
-                time.sleep(0.1)
-                parseFile(event.src_path, increment, False)
-                inc = codecs.open(destpath + '/increment.json', 'w', "utf-8")
-                increment.append("{\"ts\":" + str(int(time.time()))  + ", \"Type\": \"ts\"}");
-                inc.write("[" + ",\n".join(increment) + "]")
-                inc.close()
-
+            if (event.src_path.find(".mp3") is not -1):
+                time.sleep(0.1) 
+                self.parseMp3(event.src_path)
+                    
+    def parseMp3(self, path):
+        try:
+            parseFile(path, increment, False)
+            inc = codecs.open(destpath + '/increment.json', 'w', "utf-8")
+            increment.append("{\"ts\":" + str(int(time.time()))  + ", \"Type\": \"ts\"}");
+            inc.write("[" + ",\n".join(increment) + "]")
+            inc.close()
+        except:
+            print('sleep for' + path)
+            time.sleep(1)
+            self.parseMp3(path)
 
 """ logging """
 logging.basicConfig(filename='scanner.log', level=logging.DEBUG)
