@@ -61,11 +61,10 @@ start = time.time()
 class Artist:
     def __init__ (self, file):
         if (file.tag.artist):
-            self.Artiest = file.tag.artist.replace("\"", "")
+            self.Naam = file.tag.artist.replace("\"", "")
         else:
-            self.Artiest = ""
-    def toString (self):
-        return u"{\"Naam\":\"" + self.Artiest + "\",\"Titel\":\"\",\"Artiest\":\"\",\"Album\":\"\",\"Track\":null,\"Jaar\":null, \"Type\":\"artist\"}"
+            self.Naam = ""
+        self.Type = "artist"
     
 class Album:
     def __init__ (self, file):
@@ -75,14 +74,15 @@ class Album:
             self.Artiest = ""
         if (file.tag.album):
             self.Album = file.tag.album.replace("\"", "")
+            self.Naam = file.tag.album.replace("\"", "")
         else:
             self.Album = ""
+            self.Naam = ""
         if file.tag.best_release_date:
             self.Jaar = str(file.tag.best_release_date)
         else:
             self.Jaar = "null"
-    def toString (self):
-        return u"{\"Naam\":\"" + self.Artiest + " - " + self.Album + "\",\"Titel\":\"\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":null,\"Jaar\":\""+self.Jaar+"\", \"Type\":\"album\"}"
+        self.Type = "album"
     
 class Track:
     def __init__ (self, file, path):
@@ -98,7 +98,7 @@ class Track:
             self.Jaar = str(file.tag.best_release_date)
         else:
             self.Jaar = "null"
-        self.Track = str(file.tag.track_num[0])
+        self.Track = file.tag.track_num[0]
         if file.tag.title:
             self.Titel = file.tag.title.replace("\"", "")
         else:
@@ -111,13 +111,11 @@ class Track:
             self.seconds = 0
         self.Pad = _force_unicode(path, "utf-8").replace("\\", "\\\\")
         if file.tag.disc_num:
-            self.Disk = str(file.tag.disc_num[0])
+            self.Disk = file.tag.disc_num[0]
         else:
             self.Disk = ""
-        
-        
-    def toString (self):
-        return u"{\"Pad\":\"" + self.Pad + "\",\"Titel\":\"" + self.Titel + "\",\"Artiest\":\""+self.Artiest+"\",\"Album\":\""+self.Album+"\",\"Track\":\""+self.Track+"\",\"Jaar\":\""+self.Jaar+"\",\"U:M:S\":\""+self.Duur+"\",\"Disk\":\""+self.Disk+"\", \"Type\":\"track\"}"
+        self.Type = "track"
+    
     def time(self):
         return self.seconds
 
@@ -180,10 +178,9 @@ def parseFile(filename, jsonFile, showInfo=True):
     song = eyed3.load(filename)
     if song is not None:
         if song.tag is not None:
-            #print "parse " + filename
             if song.tag.artist not in artists:
                 artist = Artist(song)
-                jsonFile.append(artist.toString())
+                jsonFile.append(json.dumps(artist.__dict__,sort_keys=True, indent=4))
                 artists[song.tag.artist] = True
                 totalArtist = totalArtist + 1
             combined = song.tag.album
@@ -194,7 +191,7 @@ def parseFile(filename, jsonFile, showInfo=True):
                     combined = song.tag.artist
             if combined not in albums:
                 album = Album(song)
-                jsonFile.append(album.toString())
+                jsonFile.append(json.dumps(album.__dict__,sort_keys=True, indent=4))
                 albums[combined] = True
                 totalAlbums = totalAlbums + 1
             track = Track(song, filename)
@@ -210,21 +207,19 @@ def parseFile(filename, jsonFile, showInfo=True):
                     eta = tot - diff
                     sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
                     sys.stdout.flush()
-            jsonFile.append(track.toString())
+            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=4))
 
 
 allfiles = find_files(rootpath, '*.mp3')
 countfiles = sum(1 for e in allfiles)
-print "Starting scan for",countfiles,"mp3 files in '" + rootpath + "'"
-logging.info("Starting scan for",countfiles,"mp3 files in '" + rootpath + "'")
+print("Starting scan for {0} mp3 files in '{1}'".format(countfiles, rootpath))
 for filename in find_files(rootpath, '*.mp3'):
     parseFile(filename, jsonFile)
 jsonFile.append(totals())    
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
 inc = time.time()
-print "Done scanning, time taken:", ums(inc-start, False)
-logging.info("Done scanning, time taken:", ums(inc-start, False))
+print("Done scanning, time taken: {0}".format(ums(inc-start, False)))
 
 # continue scanning for new files; place them in the incremental file
 event_handler = my_handler()
