@@ -13,3 +13,53 @@ Requirements
 - watchdog: https://pypi.python.org/pypi/watchdog
 
 Please download and install the requirements first before running scanner.py!
+
+Output format
+-------------
+The output JSON is 1 large array object with 4 types of nodes
+- Artist
+- Album
+- Track
+- Totals
+Each type has specific attributes with the bare information a parser will need to parse and link the nodes
+
+Artist node
+-----------
+```javascript
+{
+    "Naam": "30 Seconds To Mars", 
+    "Type": "artist"
+}
+```
+Naam is dutch for name
+
+Album node
+----------
+```javascript
+{
+    "Album": "30 Seconds to Mars", 
+    "Artiest": "30 Seconds To Mars", 
+    "Jaar": "2002-08-27", 
+    "Naam": "30 Seconds to Mars", 
+    "Type": "album"
+}
+```
+Artiest is dutch for Artist, Jaar is dutch for Year
+
+Track node
+----------
+```javascript
+{
+    "Album": "30 Seconds to Mars", 
+    "Artiest": "30 Seconds To Mars", 
+    "Disk": 1, 
+    "Duur": "03:50", 
+    "Jaar": "2002-08-27", 
+    "Pad": "[xxxx]30 Seconds To Mars - 30 Seconds To Mars - 01 - Capricorn (a Brand New Name).mp3", 
+    "Titel": "Capricorn (A Brand New Name)", 
+    "Track": 1, 
+    "Type": "track", 
+    "seconds": 230
+}
+```
+Duur is dutch for length, Pad is dutch for path, Titel is dutch for title. Please use the full path to the file in the Pad attribute
