@@ -63,3 +63,10 @@ Track node
 }
 ```
 Duur is dutch for length, Pad is dutch for path, Titel is dutch for title. Please use the full path to the file in the Pad attribute
+
+Totals node
+-----------
+```javascript
+{ "totals" : { "artists":10, "albums":26, "tracks":291, "playingTime":73732, "timestamp":1382273323}, "Type":"totals"}
+```
+Instead of calculating the totals in the front-end; please calculate them in your scanner, since this is a one time only process. playingTime is in seconds, timestamp is EPOCH
