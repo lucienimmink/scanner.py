@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 """ This program is made possible by the awesome python knowledge of my darling Ivana <3 for ever """
 
-import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging
+import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging, uuid
 
 parser = argparse.ArgumentParser(description='Scans a given directory for MP3\'s and places the output file in an optional directory');
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
@@ -41,7 +41,8 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-    
+        # self.id = self.artist + '|' + self.album + '|' + str(self.number) + '|' + self.title
+        self.id = str(uuid.uuid4())
     def time(self):
         return self.duration
 
