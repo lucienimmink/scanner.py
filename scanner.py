@@ -36,6 +36,7 @@ class Track:
         self.title = file.tag.title
         self.duration = file.info.time_secs * 1000
         self.path = _force_unicode(path, "utf-8").replace("\\", "\\\\")
+        self.path = self.path[len(rootpath):]
         if file.tag.disc_num:
             self.disc = file.tag.disc_num[0]
         else:
@@ -115,7 +116,7 @@ def parseFile(filename, jsonFile, showInfo=True):
                     eta = tot - diff
                     sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
                     sys.stdout.flush()
-            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=4))
+            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
 
 allfiles = find_files(rootpath, '*.mp3')
 countfiles = sum(1 for e in allfiles)
