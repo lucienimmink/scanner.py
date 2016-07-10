@@ -13,8 +13,7 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 from __future__ import print_function
@@ -23,16 +22,18 @@ import os, stat, re
 from argparse import ArgumentTypeError
 from eyed3 import LOCAL_ENCODING
 from eyed3.plugins import LoaderPlugin
-from eyed3 import core, id3, mp3, utils
-from eyed3.utils.cli import (printMsg, printError, printWarning, boldText,
-                             getColor, RESET, HEADER_COLOR)
+from eyed3 import core, id3, mp3, utils, compat
+from eyed3.utils import makeUniqueFileName
+from eyed3.utils.console import (printMsg, printError, printWarning, boldText,
+                                 HEADER_COLOR, Fore)
 from eyed3.id3.frames import ImageFrame
 
-import logging
-log = logging.getLogger(__name__)
+from ..utils.log import getLogger
+log = getLogger(__name__)
 
 FIELD_DELIM = ':'
 
+DEFAULT_MAX_PADDING = 64*1024
 
 class ClassicPlugin(LoaderPlugin):
     SUMMARY = u"Classic eyeD3 interface for viewing and editing tags."
@@ -65,6 +66,9 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                        metavar="STRING", help=ARGS_HELP["--artist"])
         g.add_argument("-A", "--album", type=UnicodeArg, dest="album",
                        metavar="STRING", help=ARGS_HELP["--album"])
+        g.add_argument("-b", "--album-artist", type=UnicodeArg,
+                       dest="album_artist", metavar="STRING",
+                       help=ARGS_HELP["--album-artist"])
         g.add_argument("-t", "--title", type=UnicodeArg, dest="title",
                        metavar="STRING", help=ARGS_HELP["--title"])
         g.add_argument("-n", "--track", type=PositiveIntArg, dest="track",
@@ -72,6 +76,10 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
         g.add_argument("-N", "--track-total", type=PositiveIntArg,
                        dest="track_total", metavar="NUM",
                        help=ARGS_HELP["--track-total"])
+
+        g.add_argument("--track-offset", type=int, dest="track_offset",
+                       metavar="N", help=ARGS_HELP["--track-offset"])
+
         g.add_argument("-d", "--disc-num", type=PositiveIntArg, dest="disc_num",
                        metavar="NUM", help=ARGS_HELP["--disc-num"])
         g.add_argument("-D", "--disc-total", type=PositiveIntArg,
@@ -96,15 +104,22 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             return tuple(re.sub(NEW_DELIM, FIELD_DELIM, s)
                          for s in arg.split(FIELD_DELIM))
 
+        def _unicodeArgValue(arg):
+            if compat.PY2:
+                return compat.unicode(arg, LOCAL_ENCODING)
+            else:
+                assert(isinstance(arg, str))
+                return arg
+
         def DescLangArg(arg):
-            arg = unicode(arg, LOCAL_ENCODING)
+            arg = _unicodeArgValue(arg)
             vals = _splitArgs(arg)
             desc = vals[0]
             lang = vals[1] if len(vals) > 1 else id3.DEFAULT_LANG
             return (desc, str(lang)[:3] or id3.DEFAULT_LANG)
 
         def DescTextArg(arg):
-            arg = unicode(arg, LOCAL_ENCODING)
+            arg = _unicodeArgValue(arg)
             vals = _splitArgs(arg)
             desc = vals[0].strip() or u""
             text = vals[1] if len(vals) > 1 else u""
@@ -115,8 +130,15 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             desc, url = DescTextArg(arg)
             return (desc, url.encode("latin1"))
 
+        def FidArg(arg):
+            arg = _unicodeArgValue(arg)
+            fid = arg.strip().encode("ascii")
+            if not fid:
+                raise ArgumentTypeError("No frame ID")
+            return fid
+
         def TextFrameArg(arg):
-            arg = unicode(arg, LOCAL_ENCODING)
+            arg = _unicodeArgValue(arg)
             vals = _splitArgs(arg)
             fid = vals[0].strip().encode("ascii")
             if not fid:
@@ -132,7 +154,7 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             return core.Date.parse(date_str) if date_str else ""
 
         def CommentArg(arg):
-            arg = unicode(arg, LOCAL_ENCODING)
+            arg = _unicodeArgValue(arg)
             vals = _splitArgs(arg)
             text = vals[0]
             if not text:
@@ -148,7 +170,7 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                     data = fp.read()
             except:
                 raise ArgumentTypeError("Unable to read file")
-            return (unicode(data, LOCAL_ENCODING), desc, lang)
+            return (_unicodeArgValue(data), desc, lang)
 
         def PlayCountArg(pc):
             if not pc:
@@ -170,8 +192,8 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             return bpm
 
         def DirArg(d):
-            if not d:
-                raise ArgumentTypeError()
+            if not d or not os.path.isdir(d):
+                raise ArgumentTypeError("invalid directory: %s" % d)
             return d
 
         def ImageArg(s):
@@ -381,8 +403,16 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
         gid3.add_argument("--remove-all", action="store_true", default=False,
                           dest="remove_all", help=ARGS_HELP["--remove-all"])
         gid3.add_argument("--remove-frame", action="append", default=[],
-                          dest="remove_fids", metavar="FID",
+                          dest="remove_fids", metavar="FID", type=FidArg,
                           help=ARGS_HELP["--remove-frame"])
+
+        # 'True' means 'apply default max_padding, but only if saving anyhow'
+        gid3.add_argument("--max-padding", type=int, dest='max_padding',
+                          default=True, metavar="NUM_BYTES",
+                          help=ARGS_HELP["--max-padding"])
+        gid3.add_argument("--no-max-padding", dest='max_padding',
+                          action="store_const", const=None,
+                          help=ARGS_HELP["--no-max-padding"])
 
         _encodings = ["latin1", "utf8", "utf16", "utf16-be"]
         gid3.add_argument("--encoding", dest="text_encoding", default=None,
@@ -414,14 +444,16 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
         new_tag = False
         if (not self.audio_file.tag or
                 self.handleRemoves(self.audio_file.tag)):
-            # No tag, but there might be edit options coming.
-            self.audio_file.tag = id3.Tag()
-            self.audio_file.tag.file_info = id3.FileInfo(f)
-            self.audio_file.tag.version = parse_version
+            self.audio_file.initTag(version=parse_version)
             new_tag = True
 
-        save_tag = (self.handleEdits(self.audio_file.tag) or
-                    self.args.force_update or self.args.convert_version)
+        try:
+            save_tag = (self.handleEdits(self.audio_file.tag) or
+                        self.handlePadding(self.audio_file.tag) or
+                        self.args.force_update or self.args.convert_version)
+        except ValueError as ex:
+            printError(str(ex))
+            return
 
         self.printAudioInfo(self.audio_file.info)
 
@@ -439,10 +471,18 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             printWarning("Writing ID3 version %s" %
                          id3.versionToString(version))
 
+            # DEFAULT_MAX_PADDING is not set up as argument default,
+            # because we don't want to rewrite the file if the user
+            # did not trigger that explicitly:
+            max_padding = self.args.max_padding
+            if max_padding is True:
+                max_padding = DEFAULT_MAX_PADDING
+
             self.audio_file.tag.save(
                     version=version, encoding=self.args.text_encoding,
                     backup=self.args.backup,
-                    preserve_file_time=self.args.preserve_file_time)
+                    preserve_file_time=self.args.preserve_file_time,
+                    max_padding=max_padding)
 
         if self.args.rename_pattern:
             # Handle file renaming.
@@ -460,12 +500,18 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
         printMsg("-" * 79)
 
     def printHeader(self, file_path):
+        file_len = len(file_path)
         from stat import ST_SIZE
         file_size = os.stat(file_path)[ST_SIZE]
         size_str = utils.formatSize(file_size)
-        printMsg("%s\t%s[ %s ]%s" %
-                 (boldText(os.path.basename(file_path), c=HEADER_COLOR),
-                  getColor(HEADER_COLOR), size_str, getColor(RESET)))
+        size_len = len(size_str) + 5
+        if file_len + size_len >= 79:
+            file_path = '...' + file_path[-(75 - size_len):]
+            file_len = len(file_path)
+        pat_len = 79 - file_len - size_len
+        printMsg("%s%s%s[ %s ]%s" %
+                 (boldText(file_path, c=HEADER_COLOR()),
+                  HEADER_COLOR(), ' ' * pat_len, size_str, Fore.RESET))
 
     def printAudioInfo(self, info):
         if isinstance(info, mp3.Mp3AudioInfo):
@@ -477,13 +523,6 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                       info.bit_rate_str,
                       info.mp3_header.sample_freq, info.mp3_header.mode))
             printMsg("-" * 79)
-
-    def _getDefaultNameForImage(self, image_frame, suffix=""):
-        name_str = image_frame.picTypeToString(image_frame.picture_type)
-        if suffix:
-            name_str += suffix
-        name_str = "%s.%s" % (name_str, image_frame.mime_type.split("/")[1])
-        return name_str
 
     def _getDefaultNameForObject(self, obj_frame, suffix=""):
         if obj_frame.filename:
@@ -510,6 +549,7 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             printMsg("%s: %s" % (boldText("title"), title))
             printMsg("%s: %s" % (boldText("artist"), artist))
             printMsg("%s: %s" % (boldText("album"), album))
+            printMsg("%s: %s" % (boldText("album artist"), tag.album_artist))
 
             for date, date_label in [
                     (tag.release_date, "release date"),
@@ -620,15 +660,10 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                         if not os.path.isdir(img_path):
                             raise IOError("Directory does not exist: %s" %
                                           img_path)
-                        img_file = self._getDefaultNameForImage(img)
-                        count = 1
-                        while os.path.exists(os.path.join(img_path, img_file)):
-                            img_file = self._getDefaultNameForImage(img,
-                                                                    str(count))
-                            count += 1
-                        printWarning("Writing %s..." % os.path.join(img_path,
-                                                                    img_file))
-                        with open(os.path.join(img_path, img_file), "wb") as fp:
+                        img_file = makeUniqueFileName(
+                                    os.path.join(img_path, img.makeFileName()))
+                        printWarning("Writing %s..." % img_file)
+                        with open(img_file, "wb") as fp:
                             fp.write(img.image_data)
                 else:
                     printMsg("%s: [Type: %s] [URL: %s]" %
@@ -681,9 +716,18 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                 printMsg("-" * 79)
                 printMsg("%d ID3 Frames:" % len(tag.frame_set))
                 for fid in tag.frame_set:
-                    num_frames = len(tag.frame_set[fid])
+                    frames = tag.frame_set[fid]
+                    num_frames = len(frames)
                     count = " x %d" % num_frames if num_frames > 1 else ""
-                    printMsg("%s%s" % (fid, count))
+                    if not tag.isV1():
+                        total_bytes = sum(
+                                tuple(frame.header.data_size + frame.header.size
+                                          for frame in frames))
+                    else:
+                        total_bytes = 30
+                    printMsg("%s%s (%d bytes)" % (fid, count, total_bytes))
+                printMsg("%d bytes unused (padding)" %
+                         (tag.file_info.tag_padding_size, ))
         else:
             raise TypeError("Unknown tag type: " + str(type(tag)))
 
@@ -702,11 +746,21 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
             rm_str = "v2.x"
 
         if remove_version:
-            status = id3.Tag.remove(tag.file_info.name, remove_version)
+            status = id3.Tag.remove(
+                    tag.file_info.name, remove_version,
+                    preserve_file_time=self.args.preserve_file_time)
             printWarning("Removing ID3 %s tag: %s" %
                          (rm_str, "SUCCESS" if status else "FAIL"))
 
         return status
+
+    def handlePadding(self, tag):
+        max_padding = self.args.max_padding
+        if max_padding is None or max_padding is True:
+            return False
+        padding = tag.file_info.tag_padding_size
+        needs_change = padding > max_padding
+        return needs_change
 
     def handleEdits(self, tag):
         retval = False
@@ -731,6 +785,7 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
         for (what, arg, setFunc) in (
                 ("artist", self.args.artist, tag._setArtist),
                 ("album", self.args.album, tag._setAlbum),
+                ("album artist", self.args.album_artist, tag._setAlbumArtist),
                 ("title", self.args.title, tag._setTitle),
                 ("genre", self.args.genre, tag._setGenre),
                 ("release date", self.args.release_date, tag._setReleaseDate),
@@ -750,24 +805,42 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
                 setFunc(arg or None)
                 retval = True
 
-        # --track, --track-total
-        track_num = self.args.track
-        track_total = self.args.track_total
-        if (track_num, track_total) != (None, None):
-            track_info = (track_num or tag.track_num[0],
-                          track_total or tag.track_num[1])
+        def _checkNumberedArgTuples(curr, new):
+            n = None
+            if new not in [(None, None), curr]:
+                n = [None] * 2
+                for i in (0, 1):
+                    if new[i] == 0:
+                        n[i] = None
+                    else:
+                        n[i] = new[i] or curr[i]
+                n = tuple(n)
+            # Returing None means do nothing, (None, None) would clear both vals
+            return n
 
+        # --track, --track-total
+        track_info = _checkNumberedArgTuples(tag.track_num,
+                                             (self.args.track,
+                                              self.args.track_total))
+        if track_info is not None:
             printWarning("Setting track info: %s" % str(track_info))
             tag.track_num = track_info
             retval = True
 
-        # --disc-num, --disc-total
-        disc_num = self.args.disc_num
-        disc_total = self.args.disc_total
-        if (disc_num, disc_total) != (None, None):
-            disc_info = (disc_num or tag.disc_num[0],
-                         disc_total or tag.disc_num[1])
+        # --track-offset
+        if self.args.track_offset:
+            offset = self.args.track_offset
+            tag.track_num = (tag.track_num[0] + offset, tag.track_num[1])
+            printWarning("%s track info by %d: %d" %
+                         ("Incrementing" if offset > 0 else "Decrementing",
+                         offset, tag.track_num[0]))
+            retval = True
 
+        # --disc-num, --disc-total
+        disc_info = _checkNumberedArgTuples(tag.disc_num,
+                                            (self.args.disc_num,
+                                             self.args.disc_total))
+        if disc_info is not None:
             printWarning("Setting disc info: %s" % str(disc_info))
             tag.disc_num = disc_info
             retval = True
@@ -903,6 +976,7 @@ optional. For example, 2012-03 is valid, 2012--12 is not.
 
         # --remove-frame
         for fid in self.args.remove_fids:
+            assert(isinstance(fid, compat.BytesType))
             if fid in tag.frame_set:
                 del tag.frame_set[fid]
                 retval = True
@@ -920,11 +994,16 @@ def _getTemplateKeys():
 ARGS_HELP = {
         "--artist": "Set the artist name.",
         "--album": "Set the album name.",
+        "--album-artist": "Set the album artist name. '%s', for "
+                          "example. Another example is collaborations when the "
+                          "track artist might be 'Eminem featuring Proof' "
+                          "the album artist would be 'Eminem'." %
+                          core.VARIOUS_ARTISTS,
         "--title": "Set the track title.",
-        "--track": "Set the track number.",
-        "--track-total": "Set total number of tracks.",
-        "--disc-num": "Set the disc number.",
-        "--disc-total": "Set total number of discs in set.",
+        "--track": "Set the track number. Use 0 to clear.",
+        "--track-total": "Set total number of tracks. Use 0 to clear.",
+        "--disc-num": "Set the disc number. Use 0 to clear.",
+        "--disc-total": "Set total number of discs in set. Use 0 to clear.",
         "--genre": "Set the genre. If the argument is a standard ID3 genre "
                    "name or number both will be set. Otherwise, any string "
                    "can be used. Run 'eyeD3 --plugin=genres' for a list of "
@@ -1032,6 +1111,14 @@ ARGS_HELP = {
         "--remove-frame": "Remove all frames with the given ID. This option "
                           "may be specified multiple times.",
 
+        "--max-padding": "Shrink file if tag padding (unused space) exceeds "
+                         "the given number of bytes. "
+                         "(Useful e.g. after removal of large cover art.) "
+                         "Default is 64 KiB, file will be rewritten with "
+                         "default padding (1 KiB) or max padding, whichever "
+                         "is smaller.",
+        "--no-max-padding": "Disable --max-padding altogether.",
+
         "--force-update": "Rewrite the tag despite there being no edit "
                           "options.",
         "--verbose": "Show all available tag data",
@@ -1047,5 +1134,7 @@ ARGS_HELP = {
                     "variables: " + _getTemplateKeys(),
         "--preserve-file-times": "When writing, do not update file "
                                  "modification times.",
+        "--track-offset": "Increment/decrement the track number by [-]N. "
+                          "This option is applied after --track=N is set.",
 }
 

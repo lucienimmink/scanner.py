@@ -12,8 +12,7 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 import os, re
@@ -22,8 +21,8 @@ from .. import Error
 from .. import id3
 from .. import core, utils
 
-import logging
-log = logging.getLogger(__name__)
+from ..utils.log import getLogger
+log = getLogger(__name__)
 
 ##
 # \brief used to signal mp3-related errors.
@@ -34,8 +33,19 @@ class Mp3Exception(Error):
 NAME = "mpeg"
 MIME_TYPES = ["audio/mpeg", "audio/mp3", "audio/x-mp3", "audio/x-mpeg",
               "audio/mpeg3", "audio/x-mpeg3", "audio/mpg", "audio/x-mpg",
-              "audio/x-mpegaudio"]
+              "audio/x-mpegaudio",
+             ]
 '''Mime-types that are recognized at MP3'''
+
+OTHER_MIME_TYPES = ['application/octet-stream', # ???
+                    'audio/x-hx-aac-adts', # ???
+                    'audio/x-wav',  #RIFF wrapped mp3s
+                   ]
+'''Mime-types that have been seen to contain mp3 data.'''
+
+EXTENSIONS = [".mp3"]
+'''Valid file extensions.'''
+
 
 def isMp3File(file_name):
     '''Does a mime-type check on ``file_name`` and returns ``True`` it the
@@ -65,7 +75,11 @@ class Mp3AudioInfo(core.AudioInfo):
              header_int,
              header_bytes) = headers.findHeader(file_obj, start_offset)
             if not header_int:
-                raise headers.Mp3Exception("Unable to find a valid mp3 frame")
+                try:
+                    fname = file_obj.name
+                except AttributeError:
+                    fname = 'unknown'
+                raise headers.Mp3Exception("Unable to find a valid mp3 frame in '%s'" % fname)
 
             try:
                 self.mp3_header = headers.Mp3Header(header_int)
@@ -78,13 +92,13 @@ class Mp3AudioInfo(core.AudioInfo):
 
         file_obj.seek(header_pos)
         mp3_frame = file_obj.read(self.mp3_header.frame_length)
-        if re.compile('Xing|Info').search(mp3_frame):
+        if re.compile(b'Xing|Info').search(mp3_frame):
             # Check for Xing/Info header information.
             self.xing_header = headers.XingHeader()
             if not self.xing_header.decode(mp3_frame):
                 log.debug("Ignoring corrupt Xing header")
                 self.xing_header = None
-        elif mp3_frame.find('VBRI') >= 0:
+        elif mp3_frame.find(b'VBRI') >= 0:
             # Check for VBRI header information.
             self.vbri_header = headers.VbriHeader()
             if not self.vbri_header.decode(mp3_frame):
@@ -145,9 +159,9 @@ class Mp3AudioInfo(core.AudioInfo):
           brs = "~" + brs
        return brs
 
-##
-# Audio file container for mp3 files.
 class Mp3AudioFile(core.AudioFile):
+    '''Audio file container for mp3 files.'''
+
     def __init__(self, path, version=id3.ID3_ANY_VERSION):
         self._tag_version = version
 
@@ -155,7 +169,7 @@ class Mp3AudioFile(core.AudioFile):
         assert(self.type == core.AUDIO_MP3)
 
     def _read(self):
-        with file(self.path, 'rb') as file_obj:
+        with open(self.path, 'rb') as file_obj:
             self._tag = id3.Tag()
             tag_found = self._tag.parse(file_obj, self._tag_version)
 
@@ -178,3 +192,9 @@ class Mp3AudioFile(core.AudioFile):
 
             self.type = core.AUDIO_MP3
 
+    def initTag(self, version=id3.ID3_DEFAULT_VERSION):
+        '''Add a id3.Tag to the file (removing any existing tag if one exists).
+        '''
+        self.tag = id3.Tag()
+        self.tag.version = version
+        self.tag.file_info = id3.FileInfo(self.path)

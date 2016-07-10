@@ -12,15 +12,16 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 import string, re, types
 import logging
-log = logging.getLogger(__name__)
 
 from ..utils import requireUnicode
+from ..utils.log import getLogger
+
+log = getLogger(__name__)
 
 # Version constants and helpers
 ID3_V1              = (1, None, None)
@@ -51,7 +52,7 @@ UTF_16BE_ENCODING = b"\x02"
 UTF_8_ENCODING    = b"\x03"
 '''Byte code for UTF-8 (Not supported in ID3 versions < 2.4)'''
 
-DEFAULT_LANG = "eng"
+DEFAULT_LANG = b"eng"
 '''Default language code for frames that contain a language portion.'''
 
 def isValidVersion(v, fully_qualified=False):
@@ -328,6 +329,14 @@ class TagFile(core.AudioFile):
             self._tag = tag if tag_found else None
 
         self.type = core.AUDIO_NONE
+
+    def initTag(self, version=ID3_DEFAULT_VERSION):
+        '''Add a id3.Tag to the file (removing any existing tag if one exists).
+        '''
+        from .tag import Tag, FileInfo
+        self.tag = Tag()
+        self.tag.version = version
+        self.tag.file_info = FileInfo(self.path)
 
 
 ID3_GENRES = [

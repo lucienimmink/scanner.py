@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ################################################################################
-#  Copyright (C) 2011  Travis Shirk <travis@pobox.com>
+#  Copyright (C) 2002-2015  Travis Shirk <travis@pobox.com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -13,8 +13,7 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 import logging
@@ -43,11 +42,22 @@ class Logger(logging.Logger):
         self.log(logging.VERBOSE, msg, *args, **kwargs)
 
 
-logging.setLoggerClass(Logger)
+def getLogger(name):
+    og_class = logging.getLoggerClass()
+    try:
+        logging.setLoggerClass(Logger)
+        return logging.getLogger(name)
+    finally:
+        logging.setLoggerClass(og_class)
 
-def _initLogging():
+## The main 'eyed3' logger
+log = getLogger(MAIN_LOGGER)
+
+
+def initLogging():
     '''initialize the default logger with console output'''
-    log = logging.getLogger(MAIN_LOGGER)
+    global log
+
     # Don't propgate base 'eyed3'
     log.propagate = False
 
@@ -55,13 +65,11 @@ def _initLogging():
     console_handler.setFormatter(logging.Formatter(DEFAULT_FORMAT))
     log.addHandler(console_handler)
 
-    log.setLevel(logging.ERROR)
+    log.setLevel(logging.WARNING)
 
     return log
 
-## The main logger
-log = _initLogging()
-del _initLogging
+
 
 LEVELS = (logging.DEBUG, logging.VERBOSE, logging.INFO,
           logging.WARNING, logging.ERROR, logging.CRITICAL)

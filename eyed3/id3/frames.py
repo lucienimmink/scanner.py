@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ################################################################################
-#  Copyright (C) 2012-2013  Travis Shirk <travis@pobox.com>
+#  Copyright (C) 2012-2015  Travis Shirk <travis@pobox.com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -13,13 +13,11 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 import re
 from collections import namedtuple
-import logging
 
 from .. import core
 from ..utils import requireUnicode
@@ -32,7 +30,8 @@ from . import (LATIN1_ENCODING, UTF_8_ENCODING, UTF_16BE_ENCODING,
 from .headers import FrameHeader
 
 
-log = logging.getLogger(__name__)
+from ..utils.log import getLogger
+log = getLogger(__name__)
 
 
 class FrameException(Error):
@@ -42,6 +41,7 @@ class FrameException(Error):
 TITLE_FID          = "TIT2"
 SUBTITLE_FID       = "TIT3"
 ARTIST_FID         = "TPE1"
+ALBUM_ARTIST_FID   = "TPE2"
 ALBUM_FID          = "TALB"
 TRACKNUM_FID       = "TRCK"
 GENRE_FID          = "TCON"
@@ -104,6 +104,9 @@ class Frame(object):
     def render(self):
         return self._assembleFrame(self.data)
 
+    def __lt__(self, other):
+        return self.id < other.id
+
     @staticmethod
     def decompress(data):
         import zlib
@@ -151,12 +154,12 @@ class Frame(object):
             # 2.4:  group(1), encrypted(1), data_length_indicator (4,7)
             if header.grouped:
                 self.group_id = bin2dec(bytes2bin(data[0]))
+                log.debug("Group ID: %d" % self.group_id)
                 data = data[1:]
             if header.encrypted:
                 self.encrypt_method = bin2dec(bytes2bin(data[0]))
                 data = data[1:]
                 log.debug("Encryption Method: %d" % self.encrypt_method)
-                log.debug("Group ID: %d" % self.group_id)
             if header.data_length_indicator:
                 self.data_len = bin2dec(bytes2bin(data[:4], 7))
                 data = data[4:]
@@ -298,7 +301,6 @@ class TextFrame(Frame):
 
 
 class UserTextFrame(TextFrame):
-
     @requireUnicode("description", "text")
     def __init__(self, id=USERTEXT_FID, description=u"", text=u""):
         super(UserTextFrame, self).__init__(id, text=text)
@@ -407,7 +409,12 @@ class UrlFrame(Frame):
 
     def parse(self, data, frame_header):
         super(UrlFrame, self).parse(data, frame_header)
-        self.url = self.data
+        # The URL is ascii, ensure
+        try:
+            self.url = unicode(self.data, "ascii").encode("ascii")
+        except UnicodeDecodeError:
+            log.warning("Non ascii url, clearing.")
+            self.url = ""
 
     def render(self):
         self.data = self.url
@@ -444,7 +451,12 @@ class UserUrlFrame(UrlFrame):
         (d, u) = splitUnicode(self.data[1:], encoding)
         self.description = decodeUnicode(d, encoding)
         log.debug("UserUrlFrame description: %s" % self.description)
-        self.url = u
+        # The URL is ascii, ensure
+        try:
+            self.url = unicode(u, "ascii").encode("ascii")
+        except UnicodeDecodeError:
+            log.warning("Non ascii url, clearing.")
+            self.url = ""
         log.debug("UserUrlFrame text: %s" % self.url)
 
     def render(self):
@@ -490,7 +502,7 @@ class ImageFrame(Frame):
     MIN_TYPE            = OTHER
     MAX_TYPE            = PUBLISHER_LOGO
 
-    URL_MIME_TYPE       = "-->"
+    URL_MIME_TYPE       = b"-->"
 
     @requireUnicode("description")
     def __init__(self, id=IMAGE_FID, description=u"",
@@ -515,6 +527,15 @@ class ImageFrame(Frame):
         self._description = d
 
     @property
+    def mime_type(self):
+        return self._mime_type
+
+    @mime_type.setter
+    def mime_type(self, m):
+        m = m or b''
+        self._mime_type = m if isinstance(m, BytesType) else m.encode('ascii')
+
+    @property
     def picture_type(self):
         return self._pic_type
 
@@ -533,7 +554,7 @@ class ImageFrame(Frame):
         self.encoding = encoding = input.read(1)
 
         # Mime type
-        self.mime_type = ""
+        self.mime_type = b""
         if frame_header.minor_version != 2:
             ch = input.read(1)
             while ch and ch != b"\x00":
@@ -547,8 +568,8 @@ class ImageFrame(Frame):
             core.parseError(FrameException("APIC frame does not contain a mime "
                                            "type"))
         if (self.mime_type != self.URL_MIME_TYPE and
-                self.mime_type.find("/") == -1):
-            self.mime_type = "image/" + self.mime_type
+                self.mime_type.find(b"/") == -1):
+            self.mime_type = b"image/" + self.mime_type
 
         pt = ord(input.read(1))
         log.debug("Initial APIC picture type: %d" % pt)
@@ -591,7 +612,14 @@ class ImageFrame(Frame):
                                            "data/url"))
 
     def render(self):
-        self._initEncoding()
+        # some code has problems with image descriptions encoded <> latin1
+        # namely mp3diags: work around the problem by forcing latin1 encoding for 
+        # empty descriptions, which is by far the most common case anyway
+        if self.description:
+            self._initEncoding()
+        else:
+            self.encoding = LATIN1_ENCODING
+
         if not self.image_data and self.image_url:
             self.mime_type = self.URL_MIME_TYPE
 
@@ -702,6 +730,15 @@ class ImageFrame(Frame):
         else:
             raise ValueError("Invalid APIC picture type: %s" % s)
 
+    def makeFileName(self, name=None):
+        name = ImageFrame.picTypeToString(self.picture_type) if not name \
+                                                             else name
+        ext = self.mime_type.split("/")[1]
+        if ext == "jpeg":
+            ext = "jpg"
+        name = '.'.join([name, ext])
+        return name
+
 
 class ObjectFrame(Frame):
 
@@ -738,11 +775,11 @@ class ObjectFrame(Frame):
 
         Data string format:
         <Header for 'General encapsulated object', ID: "GEOB">
-         Text encoding          $xx
-         MIME type              <text string> $00
-         Filename               <text string according to encoding> $00 (00)
-         Content description    <text string according to encoding> $00 (00)
-         Encapsulated object    <binary data>
+        Text encoding          $xx
+        MIME type              <text string> $00
+        Filename               <text string according to encoding> $00 (00)
+        Content description    <text string according to encoding> $00 (00)
+        Encapsulated object    <binary data>
         '''
         super(ObjectFrame, self).parse(data, frame_header)
 
@@ -1462,6 +1499,12 @@ def createFrame(tag_header, frame_header, data):
 def decodeUnicode(bites, encoding):
     codec = id3EncodingToString(encoding)
     log.debug("Unicode encoding: %s" % codec)
+    if (codec.startswith("utf_16") and
+            len(bites) % 2 != 0 and bites[-1] == b"\x00"):
+        # Catch and fix bad utf16 data, it is everywhere.
+        log.warning("Fixing utf16 data with extra zero bytes")
+        bites = bites[:-1]
+    # XXX: not sure if the strip is necessary since the above fix of the data.
     return unicode(bites, codec).rstrip(b"\x00")
 
 
@@ -1733,6 +1776,11 @@ NONSTANDARD_ID3_FRAMES = {
     "XDOR": ("MusicBrainz release date (full) extension for v2.3",
              ID3_V2_3, TextFrame),
 
+    "TSO2": ("Album artist sort-order used in iTunes and Picard",
+             ID3_V2, TextFrame),
+    "TSOC": ("Composer sort-order used in iTunes and Picard",
+             ID3_V2, TextFrame),
+
     "PCST": ("iTunes extension; marks the file as a podcast",
              ID3_V2, apple.PCST),
     "TKWD": ("iTunes extension; podcast keywords?",
@@ -1743,5 +1791,7 @@ NONSTANDARD_ID3_FRAMES = {
              ID3_V2, apple.TGID),
     "WFED": ("iTunes extension; podcast feed URL?",
              ID3_V2, apple.WFED),
+    "TCAT": ("iTunes extension; podcast category.",
+             ID3_V2, TextFrame),
 }
 

@@ -13,23 +13,25 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 from __future__ import print_function
-import os, sys, logging, types
+import os, sys, types
 
 try:
     from collections import OrderedDict
 except ImportError:
     from ordereddict import OrderedDict
 from eyed3 import core, utils
-from eyed3.utils.cli import printMsg, printError
+from eyed3.utils import guessMimetype
+from eyed3.utils.console import printMsg, printError
 
 _PLUGINS = {}
 
-log = logging.getLogger(__name__)
+from ..utils.log import getLogger
+log = getLogger(__name__)
+
 
 def load(name=None, reload=False, paths=None):
     '''Returns the eyed3.plugins.Plugin *class* identified by ``name``.
@@ -145,19 +147,22 @@ class Plugin(utils.FileHandler):
         pass
 
     def handleDone(self):
+        '''Called after all file/directory processing; before program exit.
+        The return value is passed to sys.exit (None results in 0).'''
         pass
 
 
 class LoaderPlugin(Plugin):
     '''A base class that provides auto loading of audio files'''
 
-    def __init__(self, arg_parser, cache_files=False):
+    def __init__(self, arg_parser, cache_files=False, track_images=False):
         '''Constructor. If ``cache_files`` is True (off by default) then each
         AudioFile is appended to ``_file_cache`` during ``handleFile`` and
         the list is cleared by ``handleDirectory``.'''
         super(LoaderPlugin, self).__init__(arg_parser)
         self._num_loaded = 0
         self._file_cache = [] if cache_files else None
+        self._dir_images = [] if track_images else None
 
     def handleFile(self, f, *args, **kwargs):
         '''Loads ``f`` and sets ``self.audio_file`` to an instance of
@@ -172,13 +177,17 @@ class LoaderPlugin(Plugin):
             self.audio_file = core.load(f, *args, **kwargs)
         except NotImplementedError as ex:
             # Frame decryption, for instance...
-            printError(ex)
+            printError(str(ex))
             return
 
         if self.audio_file:
             self._num_loaded += 1
             if self._file_cache is not None:
                 self._file_cache.append(self.audio_file)
+        elif self._dir_images is not None:
+            mt = guessMimetype(f)
+            if mt and mt.startswith("image/"):
+                self._dir_images.append(f)
 
     def handleDirectory(self, d, _):
         '''Override to make use of ``self._file_cache``. By default the list
@@ -187,8 +196,10 @@ class LoaderPlugin(Plugin):
         if self._file_cache is not None:
             self._file_cache = []
 
+        if self._dir_images is not None:
+            self._dir_images = []
+
     def handleDone(self):
         '''If no audio files were loaded this simply prints "Nothing to do".'''
         if self._num_loaded == 0:
             printMsg("Nothing to do")
-

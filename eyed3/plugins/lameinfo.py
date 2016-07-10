@@ -13,16 +13,16 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 from __future__ import print_function
 import os
+import math
 from eyed3 import LOCAL_ENCODING as ENCODING
 from eyed3.utils import formatSize, formatTime
-from eyed3.utils.cli import (printMsg, printError, printWarning, boldText,
-                             getColor, RESET, HEADER_COLOR)
+from eyed3.utils.console import (printMsg, printError, printWarning, boldText,
+                                 Fore, HEADER_COLOR)
 from eyed3.plugins import LoaderPlugin
 
 class LameInfoPlugin(LoaderPlugin):
@@ -42,9 +42,9 @@ class LameInfoPlugin(LoaderPlugin):
         fileSize = os.stat(filePath)[ST_SIZE]
         size_str = formatSize(fileSize).encode(ENCODING)
         print("\n%s\t%s[ %s ]%s" % (boldText(os.path.basename(filePath),
-                                             HEADER_COLOR),
-                                    getColor(HEADER_COLOR), size_str,
-                                    getColor(RESET)))
+                                             HEADER_COLOR()),
+                                    HEADER_COLOR(), size_str,
+                                    Fore.RESET))
         print("-" * 79)
 
     def handleFile(self, f):

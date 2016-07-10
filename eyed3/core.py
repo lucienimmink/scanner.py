@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ################################################################################
-#  Copyright (C) 2012  Travis Shirk <travis@pobox.com>
+#  Copyright (C) 2012-2015  Travis Shirk <travis@pobox.com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -13,18 +13,20 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 '''Basic core types and utilities.'''
 import os
 import time
+import functools
 from . import LOCAL_FS_ENCODING
 from .utils import guessMimetype
+from . import compat
 
-import logging
-log = logging.getLogger(__name__)
+from .utils.log import getLogger
+log = getLogger(__name__)
+
 
 AUDIO_NONE = 0
 '''Audio type selecter for no audio.'''
@@ -32,6 +34,27 @@ AUDIO_MP3  = 1
 '''Audio type selecter for mpeg (mp3) audio.'''
 
 AUDIO_TYPES = (AUDIO_NONE, AUDIO_MP3)
+
+LP_TYPE = u"lp"
+EP_TYPE = u"ep"
+COMP_TYPE = u"compilation"
+LIVE_TYPE = u"live"
+VARIOUS_TYPE = u"various"
+DEMO_TYPE = u"demo"
+SINGLE_TYPE = u"single"
+ALBUM_TYPE_IDS = [LP_TYPE, EP_TYPE, COMP_TYPE, LIVE_TYPE, VARIOUS_TYPE,
+                  DEMO_TYPE, SINGLE_TYPE]
+
+VARIOUS_ARTISTS = u"Various Artists"
+
+TXXX_ALBUM_TYPE = u"eyeD3#album_type"
+'''A key that can be used in a TXXX frame to specify the type of collection
+(or album) a file belongs. See :class:`eyed3.core.ALBUM_TYPE_IDS`.'''
+
+TXXX_ARTIST_ORIGIN = u"eyeD3#artist_origin"
+'''A key that can be used in a TXXX frame to specify the origin of an
+artist/band. i.e. where they are from.
+The format is: city<tab>state<tab>country'''
 
 
 def load(path, tag_version=None):
@@ -49,7 +72,7 @@ def load(path, tag_version=None):
     eventual format of the metadata.
     '''
     from . import mp3, id3
-    log.info("Loading file: %s" % path)
+    log.debug("Loading file: %s" % path)
 
     if os.path.exists(path):
         if not os.path.isfile(path):
@@ -58,7 +81,11 @@ def load(path, tag_version=None):
         raise IOError("file not found: %s" % path)
 
     mtype = guessMimetype(path)
-    if mtype in mp3.MIME_TYPES:
+    log.debug("File mime-type: %s" % mtype)
+
+    if (mtype in mp3.MIME_TYPES or
+        (mtype in mp3.OTHER_MIME_TYPES and
+         os.path.splitext(path)[1].lower() in mp3.EXTENSIONS)):
         return mp3.Mp3AudioFile(path, tag_version)
     elif mtype == "application/x-id3":
         return id3.TagFile(path, tag_version)
@@ -78,9 +105,16 @@ class Tag(object):
     '''An abstract interface for audio tag (meta) data (e.g. artist, title,
     etc.)'''
 
+    read_only = False
+
     def _setArtist(self, val):
         raise NotImplementedError
     def _getArtist(self):
+        raise NotImplementedError
+
+    def _getAlbumArtist(self):
+        raise NotImplementedError
+    def _setAlbumArtist(self, val):
         raise NotImplementedError
 
     def _setAlbum(self, val):
@@ -104,6 +138,13 @@ class Tag(object):
     @artist.setter
     def artist(self, v):
         self._setArtist(v)
+
+    @property
+    def album_artist(self):
+        return self._getAlbumArtist()
+    @album_artist.setter
+    def album_artist(self, v):
+        self._setAlbumArtist(v)
 
     @property
     def album(self):
@@ -140,12 +181,16 @@ class AudioFile(object):
         '''
         raise NotImplementedError()
 
-    def rename(self, name, fsencoding=LOCAL_FS_ENCODING):
+    def rename(self, name, fsencoding=LOCAL_FS_ENCODING,
+               preserve_file_time=False):
         '''Rename the file to ``name``.
         The encoding used for the file name is :attr:`eyed3.LOCAL_FS_ENCODING`
         unless overridden by ``fsencoding``. Note, if the target file already
         exists, or the full path contains non-existent directories the
-        operation will fail with :class:`IOError`.'''
+        operation will fail with :class:`IOError`.
+        File times are not modified when ``preserve_file_time`` is ``True``,
+        ``False`` is the default.
+        '''
         base = os.path.basename(self.path)
         base_ext = os.path.splitext(base)[1]
         dir = os.path.dirname(self.path)
@@ -154,12 +199,17 @@ class AudioFile(object):
 
         new_name = u"%s%s" % (os.path.join(dir, name), base_ext)
         if os.path.exists(new_name):
-            raise IOError("File '%s' exists, will not overwrite" % new_name)
+            raise IOError(u"File '%s' exists, will not overwrite" % new_name)
         elif not os.path.exists(os.path.dirname(new_name)):
-            raise IOError("Target directory '%s' does not exists, will not "
+            raise IOError(u"Target directory '%s' does not exists, will not "
                           "create" % os.path.dirname(new_name))
 
         os.rename(self.path, new_name)
+        self.tag.file_info.name = new_name
+        if preserve_file_time:
+            self.tag.file_info.touch((self.tag.file_info.atime,
+                                      self.tag.file_info.mtime))
+
         self.path = new_name
 
     @property
@@ -194,13 +244,15 @@ class AudioFile(object):
         self._read()
 
 
+@compat.total_ordering
 class Date(object):
     '''
     A class for representing a date and time (optional). This class differs
     from ``datetime.datetime`` in that the default values for month, day,
     hour, minute, and second is ``None`` and not 'January 1, 00:00:00'.
     This allows for an object that is simply 1987, and not January 1 12AM,
-    for example.
+    for example. But when more resolution is required those vales can be set
+    as well.
     '''
 
     TIME_STAMP_FORMATS = ["%Y",
@@ -260,12 +312,37 @@ class Date(object):
         return self._second
 
     def __eq__(self, rhs):
+        if not rhs:
+            return False
+
         return (self.year == rhs.year and
                 self.month == rhs.month and
                 self.day == rhs.day and
                 self.hour == rhs.hour and
                 self.minute == rhs.minute and
                 self.second == rhs.second)
+
+    def __ne__(self, rhs):
+        return not(self == rhs)
+
+    def __lt__(self, rhs):
+        if not rhs:
+            return True
+
+        for l, r in ((self.year, rhs.year),
+                     (self.month, rhs.month),
+                     (self.day, rhs.day),
+                     (self.hour, rhs.hour),
+                     (self.minute, rhs.minute),
+                     (self.second, rhs.second)):
+            if l < r:
+                return True
+            elif l > r:
+                return False
+        return False
+
+    def __hash__(self):
+        return hash(str(self))
 
     @staticmethod
     def _validateFormat(s):
@@ -286,6 +363,7 @@ class Date(object):
 
     @staticmethod
     def parse(s):
+        '''Parses date strings that conform to ISO-8601.'''
         s = s.strip('\x00')
 
         pdate, fmt = Date._validateFormat(s)
@@ -307,6 +385,8 @@ class Date(object):
         return Date(pdate.tm_year, **kwargs)
 
     def __str__(self):
+        '''Returns date strings that conform to ISO-8601.
+        The returned string will be no larger than 17 characters.'''
         s = "%d" % self.year
         if self.month:
             s += "-%s" % str(self.month).rjust(2, '0')
@@ -325,4 +405,7 @@ class Date(object):
 
 
 def parseError(ex):
+    '''A function that is invoked when non-fatal parse, format, etc. errors
+    occur. In most cases the invalid values will be ignored or possibly fixed.
+    This function simply logs the error.'''
     log.warning(ex)

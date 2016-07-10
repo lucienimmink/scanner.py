@@ -13,14 +13,13 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 from __future__ import print_function
 import time
 from eyed3 import LOCAL_ENCODING as ENCODING
-from eyed3.utils.cli import printMsg, printError
+from eyed3.utils.console import printMsg, printError
 from eyed3.utils import formatSize, formatTime
 from eyed3.info import VERSION
 from eyed3.id3 import versionToString
@@ -81,7 +80,10 @@ class NfoPlugin(LoaderPlugin):
             printMsg("")
             printMsg("Artist   : %s" % audio_files[0].tag.artist)
             printMsg("Album    : %s" % album)
-            printMsg("Released : %s" % audio_files[0].tag.best_release_date)
+            printMsg("Released : %s" %
+                     (audio_files[0].tag.original_release_date or
+                      audio_files[0].tag.release_date))
+            printMsg("Recorded : %s" % audio_files[0].tag.recording_date)
             genre = audio_files[0].tag.genre
             if genre:
                 genre = genre.name

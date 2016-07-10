@@ -13,21 +13,24 @@
 #  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#  along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
 from __future__ import print_function
+import os
 import sys
-import os.path
 import textwrap
+import warnings
+
 import eyed3
 import eyed3.utils
-import eyed3.utils.cli
+import eyed3.utils.console
 import eyed3.plugins
 import eyed3.info
 from eyed3.compat import ConfigParser, ConfigParserError, StringIO
 
+from eyed3.utils.log import initLogging
+initLogging()
 
 DEFAULT_PLUGIN = "classic"
 DEFAULT_CONFIG = eyed3.info.USER_CONFIG
@@ -45,20 +48,20 @@ def main(args, config):
         eyed3.utils.walk(args.plugin, p, excludes=args.excludes,
                          fs_encoding=args.fs_encoding)
 
-    args.plugin.handleDone()
+    retval = args.plugin.handleDone()
 
-    return 0
+    return retval or 0
 
 
 def _listPlugins(config):
-    from eyed3.utils.cli import GREEN, GREY, boldText
+    from eyed3.utils.console import Fore, Style
 
     print("")
 
     def header(name):
         is_default = name == DEFAULT_PLUGIN
-        return (boldText("* ", c=GREEN if is_default else None) +
-                boldText(name, c=None))
+        return (Style.BRIGHT + (Fore.GREEN if is_default else '') + "* " +
+                name + Style.RESET_ALL)
 
     all_plugins = eyed3.plugins.load(reload=True, paths=_getPluginPath(config))
     # Create a new dict for sorted display
@@ -80,7 +83,7 @@ def _listPlugins(config):
         for l in textwrap.wrap(plugin.SUMMARY,
                                initial_indent=' ' * 2,
                                subsequent_indent=' ' * 2):
-            print(boldText(l, c=GREY))
+            print(Style.BRIGHT + Fore.GREY + l + Style.RESET_ALL)
         print("")
 
 
@@ -145,60 +148,64 @@ def profileMain(args, config):  # pragma: no cover
     return 0
 
 
+def makeCmdLineParser(subparser=None):
+    from eyed3.utils import ArgumentParser
+
+    p = (ArgumentParser(prog=eyed3.info.NAME, add_help=True)
+            if not subparser else subparser)
+
+    p.add_argument("paths", metavar="PATH", nargs="*",
+                   help="Files or directory paths")
+    p.add_argument("--exclude", action="append", metavar="PATTERN",
+                   dest="excludes",
+                   help="A regular expression for path exclusion. May be "
+                        "specified multiple times.")
+    p.add_argument("-L", "--plugins", action="store_true", default=False,
+                   dest="list_plugins", help="List all available plugins")
+    p.add_argument("-P", "--plugin", action="store", dest="plugin",
+                   default=None, metavar="NAME",
+                   help="Specify which plugin to use. The default is '%s'" %
+                        DEFAULT_PLUGIN)
+    p.add_argument("-C", "--config", action="store", dest="config",
+                   default=None, metavar="FILE",
+                   help="Supply a configuration file. The default is "
+                        "'%s', although even that is optional." %
+                        DEFAULT_CONFIG)
+    p.add_argument("--backup", action="store_true", dest="backup",
+                   help="Plugins should honor this option such that "
+                        "a backup is made of any file modified. The backup "
+                        "is made in same directory with a '.orig' "
+                        "extension added.")
+    p.add_argument("-Q", "--quiet", action="store_true", dest="quiet",
+                   default=False, help="A hint to plugins to output less.")
+    p.add_argument("--fs-encoding", action="store",
+                   dest="fs_encoding", default=eyed3.LOCAL_FS_ENCODING,
+                   metavar="ENCODING",
+                   help="Use the specified file system encoding for "
+                        "filenames.  Default as it was detected is '%s' "
+                        "but this option is still useful when reading "
+                        "from mounted file systems." %
+                        eyed3.LOCAL_FS_ENCODING)
+    p.add_argument("--no-config", action="store_true", dest="no_config",
+                   help="Do not load the default user config '%s'. "
+                        "The -c/--config options are still honored if "
+                        "present." % DEFAULT_CONFIG)
+    p.add_argument("--no-color", action="store_true", dest="no_color",
+                   help="Suppress color codes in console output. "
+                        "This will happen automatically if the output is "
+                        "not a TTY (e.g. when redirecting to a file)")
+
+    # Debugging options
+    group = p.debug_arg_group
+    group.add_argument("--profile", action="store_true", default=False,
+                       dest="debug_profile",
+                       help="Run using python profiler.")
+    group.add_argument("--pdb", action="store_true", dest="debug_pdb",
+                       help="Drop into 'pdb' when errors occur.")
+    return p
+
+
 def parseCommandLine(cmd_line_args=None):
-    from eyed3.utils.cli import ArgumentParser
-
-    def makeParser():
-        p = ArgumentParser(prog=eyed3.info.NAME, add_help=True)
-        p.add_argument("paths", metavar="PATH", nargs="*",
-                       help="Files or directory paths")
-        p.add_argument("--exclude", action="append", metavar="PATTERN",
-                       dest="excludes",
-                       help="A regular expression for path exclusion. May be "
-                            "specified multiple times.")
-        p.add_argument("-L", "--plugins", action="store_true", default=False,
-                       dest="list_plugins", help="List all available plugins")
-        p.add_argument("-P", "--plugin", action="store", dest="plugin",
-                       default=None, metavar="NAME",
-                       help="Specify which plugin to use. The default is '%s'" %
-                            DEFAULT_PLUGIN)
-        p.add_argument("-C", "--config", action="store", dest="config",
-                       default=None, metavar="FILE",
-                       help="Supply a configuration file. The default is "
-                            "'%s', although even that is optional." %
-                            DEFAULT_CONFIG)
-        p.add_argument("--backup", action="store_true", dest="backup",
-                       help="Plugins should honor this option such that "
-                            "a backup is made of any file modified. The backup "
-                            "is made in same directory with a '.orig' "
-                            "extension added.")
-        p.add_argument("-Q", "--quiet", action="store_true", dest="quiet",
-                       default=False, help="A hint to plugins to output less.")
-        p.add_argument("--fs-encoding", action="store",
-                       dest="fs_encoding", default=eyed3.LOCAL_FS_ENCODING,
-                       metavar="ENCODING",
-                       help="Use the specified file system encoding for "
-                            "filenames.  Default as it was detected is '%s' "
-                            "but this option is still useful when reading "
-                            "from mounted file systems." %
-                            eyed3.LOCAL_FS_ENCODING)
-        p.add_argument("--no-config", action="store_true", dest="no_config",
-                       help="Do not load the default user config '%s'. "
-                            "The -c/--config options are still honored if "
-                            "present." % DEFAULT_CONFIG)
-        p.add_argument("--no-color", action="store_true", dest="no_color",
-                       help="Suppress color codes in console output. "
-                            "This will happen automatically if the output is "
-                            "not a TTY (e.g. when redirecting to a file)")
-
-        # Debugging options
-        group = p.debug_arg_group
-        group.add_argument("--profile", action="store_true", default=False,
-                           dest="debug_profile",
-                           help="Run using python profiler.")
-        group.add_argument("--pdb", action="store_true", dest="debug_pdb",
-                           help="Drop into 'pdb' when errors occur.")
-        return p
 
     cmd_line_args = list(cmd_line_args) if cmd_line_args else list(sys.argv[1:])
 
@@ -221,7 +228,7 @@ def parseCommandLine(cmd_line_args=None):
             stage_one_args.append(opt)
         idx += 1
 
-    parser = makeParser()
+    parser = makeCmdLineParser()
     args = parser.parse_args(stage_one_args)
 
     config = _loadConfig(args)
@@ -240,7 +247,7 @@ def parseCommandLine(cmd_line_args=None):
 
     PluginClass = eyed3.plugins.load(plugin_name, paths=_getPluginPath(config))
     if PluginClass is None:
-        eyed3.utils.cli.printError("Plugin not found: %s" % plugin_name)
+        eyed3.utils.console.printError("Plugin not found: %s" % plugin_name)
         parser.exit(1)
     plugin = PluginClass(parser)
 
@@ -268,23 +275,26 @@ if __name__ == "__main__":  # pragma: no cover
     try:
         args, _, config = parseCommandLine()
 
-        for fp in [sys.stdout, sys.stderr]:
-            color = not args.no_color and os.isatty(fp.fileno())
-            eyed3.utils.cli.enableColorOutput(fp, color)
+        eyed3.utils.console.AnsiCodes.init(not args.no_color)
 
         mainFunc = main if args.debug_profile is False else profileMain
         retval = mainFunc(args, config)
     except KeyboardInterrupt:
         retval = 0
-    except IOError as ex:
-        eyed3.utils.cli.printError(ex)
+    except (StopIteration, IOError) as ex:
+        eyed3.utils.console.printError(unicode(ex))
+        retval = 1
     except Exception as ex:
-        eyed3.utils.cli.printError("Uncaught exception: %s\n" % str(ex))
+        eyed3.utils.console.printError("Uncaught exception: %s\n" % str(ex))
         eyed3.log.exception(ex)
 
         if args.debug_pdb:
             try:
-                import ipdb as pdb
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", PendingDeprecationWarning)
+                    # Must delay the import of ipdb as say as possible because
+                    # of https://github.com/gotcha/ipdb/issues/48
+                    import ipdb as pdb
             except ImportError:
                 import pdb
 
