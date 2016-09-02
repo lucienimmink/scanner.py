@@ -1,0 +1,19 @@
+{
+  "name": "scanner.py",
+  "version": "1.0.0",
+  "description": "python based mp3 scanner",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucienimmink/scanner.py.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lucienimmink/scanner.py/issues"
+  },
+  "homepage": "https://github.com/lucienimmink/scanner.py#readme"
+}
