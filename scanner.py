@@ -41,8 +41,9 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-        # self.id = self.artist + '|' + self.album + '|' + str(self.number) + '|' + self.title
         self.id = str(uuid.uuid4())
+        self.added = os.path.getmtime(path) * 1000
+
     def time(self):
         return self.duration
 
