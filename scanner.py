@@ -42,7 +42,7 @@ class Track:
         else:
             self.disc = 1
         self.id = str(uuid.uuid4())
-        self.added = os.path.getmtime(path) * 1000
+        self.modified = os.path.getmtime(path) * 1000
 
     def time(self):
         return self.duration
