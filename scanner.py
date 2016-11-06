@@ -16,6 +16,7 @@ destpath = args.destpath or args.scanpath
 logging.basicConfig(filename='scanner.log', level=logging.DEBUG)
 
 f = codecs.open(destpath + '/node-music.json', 'w', "utf-8")
+p = codecs.open(destpath + '/progress.txt', 'w', "utf-8")
 
 jsonFile = list()
 nrScanned = 0
@@ -109,6 +110,9 @@ def parseFile(filename, jsonFile, showInfo=True):
             track = Track(song, filename)
             nrScanned = nrScanned + 1
             perc = int((float(float(nrScanned) / float(countfiles))) * 100)
+            p.seek(0)
+            p.write(str(perc))
+            p.truncate()
             if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
                 inc = time.time()
                 #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
@@ -127,5 +131,6 @@ for filename in find_files(rootpath, '*.mp3'):
     parseFile(filename, jsonFile)
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
+p.close()
 inc = time.time()
 print("Done scanning, time taken: {0}".format(ums(inc-start, False)))
