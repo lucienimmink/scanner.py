@@ -43,7 +43,8 @@ class Track:
         else:
             self.disc = 1
         self.id = base64.b64encode(str(self.artist.replace(' ', '') + self.album.replace(' ', '') + str(self.number) + self.title.replace(' ', '')).encode('utf-8'))
-        self.modified = os.path.getmtime(path) * 1000
+        self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
+
 
     def time(self):
         return self.duration
