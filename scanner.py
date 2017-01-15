@@ -26,6 +26,7 @@ start = time.time()
     
 class Track:
     def __init__ (self, file, path):
+        idartist = ''
         self.artist = file.tag.artist
         self.albumartist = file.tag.album_artist
         if self.artist is not None:
