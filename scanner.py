@@ -42,7 +42,7 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-        self.id = base64.b64encode(str(self.artist.replace(' ', '') + self.album.replace(' ', '') + str(self.number) + self.title.replace(' ', '')).encode('utf-8'))
+        self.id = base64.b64encode(_force_unicode(self.artist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8'))
         self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
 
 
