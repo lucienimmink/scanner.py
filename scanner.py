@@ -28,6 +28,10 @@ class Track:
     def __init__ (self, file, path):
         self.artist = file.tag.artist
         self.albumartist = file.tag.album_artist
+        if self.artist is not None:
+            idartist = self.artist
+        if self.albumartist is not None:
+            idartist = self.albumartist
         self.album = file.tag.album
         if file.tag.best_release_date:
             self.year = str(file.tag.best_release_date)
@@ -42,7 +46,8 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-        self.id = base64.b64encode((_force_unicode(self.artist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8')).encode('utf-8'))
+        if idartist and self.album and self.number and self.title:
+            self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8')).encode('utf-8'))
         self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
 
 
