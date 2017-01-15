@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
-""" This program is made possible by the awesome python knowledge of my darling Ivana <3 for ever """
+"""This program is made possible by the awesome python knowledge of my darling Ivana <3 for ever"""
 
-import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging, uuid
+import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging, base64
 
 parser = argparse.ArgumentParser(description='Scans a given directory for MP3\'s and places the output file in an optional directory');
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
@@ -42,7 +42,7 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-        self.id = str(uuid.uuid4())
+        self.id = base64.b64encode(str(self.artist.replace(' ', '') + self.album.replace(' ', '') + str(self.number) + self.title.replace(' ', '')).encode('utf-8'))
         self.modified = os.path.getmtime(path) * 1000
 
     def time(self):
