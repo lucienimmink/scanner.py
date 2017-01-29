@@ -47,8 +47,11 @@ class Track:
             self.disc = file.tag.disc_num[0]
         else:
             self.disc = 1
-        if idartist and self.album and self.number and self.title:
+        if idartist and self.album and self.title and (self.number is not None):
             self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8')).encode('utf-8'))
+        else: 
+            if idartist and self.album and self.title:
+                self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + _force_unicode(self.title, 'utf-8')).encode('utf-8'))
         self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
 
 
