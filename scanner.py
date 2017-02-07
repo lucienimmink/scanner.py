@@ -77,7 +77,7 @@ class FlacTrack:
             self.year = file['date'][0]
         except KeyError:
             self.year = 0
-        self.number = file['tracknumber'][0]
+        self.number = int(file['tracknumber'][0])
         self.title = file['title'][0]
 
         self.duration = file.info.length * 1000
@@ -85,7 +85,7 @@ class FlacTrack:
         self.path = self.path[len(rootpath):]
         self.disc = None
         try:
-            self.disc = file['discnumber'][0]
+            self.disc = int(file['discnumber'][0])
         except KeyError:
             self.disc = 1
         if idartist and self.album and self.title and (self.number is not None):
