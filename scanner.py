@@ -3,7 +3,8 @@
 """This program is made possible by the awesome python knowledge of my darling Ivana <3 for ever"""
 
 import os, fnmatch, json, sys, codecs, time, eyed3, argparse, logging, base64
-from mutagen.flac import FLAC, StreamInfo
+from mutagen.flac import FLAC
+from mutagen.mp4 import MP4
 
 parser = argparse.ArgumentParser(description='Scans a given directory for MP3\'s and places the output file in an optional directory');
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
@@ -95,6 +96,47 @@ class FlacTrack:
                 self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + _force_unicode(self.title, 'utf-8')).encode('utf-8') + '_flac')
         self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
         self.type = 'flac'
+    def time(self):
+        return self.duration
+
+class MP4Track:
+    def __init__ (self, file, path):
+        idartist = ''
+        self.artist = file['\xa9ART'][0]
+        self.albumartist = None
+        try:
+            self.albumartist = file['aART'][0]
+        except KeyError:
+            self.albumartist = None
+
+        if self.artist is not None:
+            idartist = self.artist
+        if self.albumartist is not None:
+            idartist = self.albumartist
+        self.album = file['\xa9alb'][0]
+        self.year = None
+        try:
+            self.year = file['\xa9day'][0]
+        except KeyError:
+            self.year = 0
+        self.number = file['trkn'][0][0]
+        self.title = file['\xa9nam'][0]
+
+        self.duration = file.info.length * 1000
+        self.path = _force_unicode(path, "utf-8").replace("\\", "\\\\")
+        self.path = self.path[len(rootpath):]
+        self.disc = None
+        try:
+            self.disc = file['disk'][0][0]
+        except KeyError:
+            self.disc = 1
+        if idartist and self.album and self.title and (self.number is not None):
+            self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8')).encode('utf-8') + '_flac')
+        else: 
+            if idartist and self.album and self.title:
+                self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + _force_unicode(self.title, 'utf-8')).encode('utf-8') + '_flac')
+        self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
+        self.type = 'mp4'
     def time(self):
         return self.duration
 
@@ -202,10 +244,40 @@ def parseFlac(filename, jsonFile, showInfo=True):
                 sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
                 sys.stdout.flush()
         jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+
+def parseM4A(filename, jsonFile, showInfo=True):
+    global artists
+    global albums
+    global totalArtist
+    global totalAlbums
+    global totalTime
+    global nrScanned
+    
+    song = MP4(filename)
+    if song is not None:
+        track = MP4Track(song, filename)
+        nrScanned = nrScanned + 1
+        perc = int((float(float(nrScanned) / float(countfiles))) * 100)
+        p.seek(0)
+        p.write(str(perc))
+        p.truncate()
+        if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
+            inc = time.time()
+            #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
+            diff = inc-start
+            if (perc > 0):
+                tot = (diff / perc) * 100
+                eta = tot - diff
+                sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
+                sys.stdout.flush()
+        jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+
 allfiles = find_files(rootpath, '*.mp3')
 allfilesflac = find_files(rootpath, '*.flac')
+allfilesm4a = find_files(rootpath, '*.m4a')
 countfiles = sum(1 for e in allfiles)
 countfiles += sum(1 for e in allfilesflac)
+countfiles += sum(1 for e in allfilesm4a)
 
 print "Starting scan for {0} media files in '{1}'".format(countfiles, rootpath)
 for filename in find_files(rootpath, '*.mp3'):
@@ -214,9 +286,13 @@ for filename in find_files(rootpath, '*.mp3'):
 for filename in find_files(rootpath, '*.flac'):
     parseFlac(filename, jsonFile)
 
+for filename in find_files(rootpath, '*.m4a'):
+    parseM4A(filename, jsonFile)
+
 
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
 p.close()
 inc = time.time()
 print("Done scanning, time taken: {0}".format(ums(inc-start, False)))
+
