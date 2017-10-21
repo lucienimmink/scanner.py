@@ -292,6 +292,9 @@ for filename in find_files(rootpath, '*.m4a'):
 
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
+p.seek(0)
+p.write("100")
+p.truncate()
 p.close()
 inc = time.time()
 print("Done scanning, time taken: {0}".format(ums(inc-start, False)))
