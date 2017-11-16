@@ -55,11 +55,21 @@ class MP3Track:
             self.year = file['date'][0]
         except KeyError:
             self.year = 0
+
+        # create a def that checks on some chars from an enum; input is the propertie of the file, the output the value
+        # do that for all types like number, year and discnumber
         try:
             self.number = int(file['tracknumber'][0])
         except ValueError:
-            end = file['tracknumber'][0].index("/")
-            self.number = int(file['tracknumber'][0][0:end])
+            try:
+                end = file['tracknumber'][0].index("/")
+                self.number = int(file['tracknumber'][0][0:end])
+            except ValueError:
+                try:
+                    end = file['tracknumber'][0].index("\\")
+                    self.number = int(file['tracknumber'][0][0:end])
+                except ValueError:
+                    self.number = None
         except KeyError:
             self.number = None
         try:
@@ -297,24 +307,27 @@ def parseFlac(filename, jsonFile, showInfo=True):
     global totalTime
     global nrScanned
 
-    song = FLAC(filename)
-    if song is not None:
-        track = FlacTrack(song, filename)
-        nrScanned = nrScanned + 1
-        perc = int((float(float(nrScanned) / float(countfiles))) * 100)
-        p.seek(0)
-        p.write(str(perc))
-        p.truncate()
-        if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
-            inc = time.time()
-            #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
-            diff = inc-start
-            if (perc > 0):
-                tot = (diff / perc) * 100
-                eta = tot - diff
-                sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
-                sys.stdout.flush()
-        jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    try: 
+        song = FLAC(filename)
+        if song is not None:
+            track = FlacTrack(song, filename)
+            nrScanned = nrScanned + 1
+            perc = int((float(float(nrScanned) / float(countfiles))) * 100)
+            p.seek(0)
+            p.write(str(perc))
+            p.truncate()
+            if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
+                inc = time.time()
+                #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
+                diff = inc-start
+                if (perc > 0):
+                    tot = (diff / perc) * 100
+                    eta = tot - diff
+                    sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
+                    sys.stdout.flush()
+            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    except MutagenError:
+        print "Error occured"
 
 def parseM4A(filename, jsonFile, showInfo=True):
     global artists
@@ -324,24 +337,27 @@ def parseM4A(filename, jsonFile, showInfo=True):
     global totalTime
     global nrScanned
 
-    song = MP4(filename)
-    if song is not None:
-        track = MP4Track(song, filename)
-        nrScanned = nrScanned + 1
-        perc = int((float(float(nrScanned) / float(countfiles))) * 100)
-        p.seek(0)
-        p.write(str(perc))
-        p.truncate()
-        if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
-            inc = time.time()
-            #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
-            diff = inc-start
-            if (perc > 0):
-                tot = (diff / perc) * 100
-                eta = tot - diff
-                sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
-                sys.stdout.flush()
-        jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    try: 
+        song = MP4(filename)
+        if song is not None:
+            track = MP4Track(song, filename)
+            nrScanned = nrScanned + 1
+            perc = int((float(float(nrScanned) / float(countfiles))) * 100)
+            p.seek(0)
+            p.write(str(perc))
+            p.truncate()
+            if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
+                inc = time.time()
+                #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
+                diff = inc-start
+                if (perc > 0):
+                    tot = (diff / perc) * 100
+                    eta = tot - diff
+                    sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
+                    sys.stdout.flush()
+            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    except MutagenError:
+        print "Error occured"
 
 allfiles = find_files(rootpath, '*.mp3')
 allfilesflac = find_files(rootpath, '*.flac')
