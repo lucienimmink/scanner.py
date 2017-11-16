@@ -6,6 +6,7 @@ import os, fnmatch, json, sys, codecs, time, argparse, logging, base64
 from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.mp3 import EasyMP3 as MP3
+from mutagen._util import MutagenError
 
 parser = argparse.ArgumentParser(description='Scans a given directory for MP3\'s and places the output file in an optional directory');
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
