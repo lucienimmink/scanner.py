@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2005  Michael Urman
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 import zlib
 from struct import unpack
@@ -434,6 +434,7 @@ class TextFrame(Frame):
         for val in other[:]:
             if val not in self:
                 self.append(val)
+                self.encoding = max(self.encoding, other.encoding)
         return self
 
     def _pprint(self):
@@ -651,6 +652,30 @@ class TKWD(TextFrame):
 
 class TCAT(TextFrame):
     "iTunes Podcast Category"
+
+
+class MVNM(TextFrame):
+    "iTunes Movement Name"
+
+
+class MVN(MVNM):
+    "iTunes Movement Name"
+
+
+class MVIN(NumericPartTextFrame):
+    "iTunes Movement Number/Count"
+
+
+class MVI(MVIN):
+    "iTunes Movement Number/Count"
+
+
+class GRP1(TextFrame):
+    "iTunes Grouping"
+
+
+class GP1(GRP1):
+    "iTunes Grouping"
 
 
 class TDOR(TimeStampTextFrame):
@@ -1048,6 +1073,9 @@ class USLT(Frame):
         return self.text == other
 
     __hash__ = Frame.__hash__
+
+    def _pprint(self):
+        return "%s=%s=%s" % (self.desc, self.lang, self.text)
 
 
 @swap_to_string

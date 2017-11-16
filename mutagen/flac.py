@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2005  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Read and write FLAC Vorbis comments and stream information.
 
@@ -201,7 +201,7 @@ class StreamInfo(MetadataBlock, mutagen.StreamInfo):
                     self.channels == other.channels and
                     self.bits_per_sample == other.bits_per_sample and
                     self.total_samples == other.total_samples)
-        except:
+        except Exception:
             return False
 
     __hash__ = MetadataBlock.__hash__
@@ -391,7 +391,7 @@ class CueSheetTrack(object):
     Attributes:
         track_number (`int`): track number
         start_offset (`int`): track offset in samples from start of FLAC stream
-        isrc (`text`): ISRC code, exactly 12 characters
+        isrc (`mutagen.text`): ISRC code, exactly 12 characters
         type (`int`): 0 for audio, 1 for digital data
         pre_emphasis (`bool`): true if the track is recorded with pre-emphasis
         indexes (List[`mutagen.flac.CueSheetTrackIndex`]):
@@ -437,7 +437,7 @@ class CueSheet(MetadataBlock):
     in the cue sheet.
 
     Attributes:
-        media_catalog_number (`text`): media catalog number in ASCII,
+        media_catalog_number (`mutagen.text`): media catalog number in ASCII,
             up to 128 characters
         lead_in_samples (`int`): number of lead-in samples
         compact_disc (`bool`): true if the cuesheet corresponds to a

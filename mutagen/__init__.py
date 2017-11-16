@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2005  Michael Urman
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
-
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Mutagen aims to be an all purpose multimedia tagging library.
 
@@ -24,7 +23,7 @@ from mutagen._util import MutagenError
 from mutagen._file import FileType, StreamInfo, File
 from mutagen._tags import Tags, Metadata, PaddingInfo
 
-version = (1, 36, 2)
+version = (1, 39)
 """Version tuple."""
 
 version_string = ".".join(map(str, version))

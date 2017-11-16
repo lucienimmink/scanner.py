@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Utility classes for Mutagen.
 
@@ -16,6 +16,8 @@ import sys
 import struct
 import codecs
 import errno
+import decimal
+from io import BytesIO
 
 try:
     import mmap
@@ -31,6 +33,15 @@ from fnmatch import fnmatchcase
 
 from ._compat import chr_, PY2, iteritems, iterbytes, integer_types, xrange, \
     izip, text_type, reraise
+
+
+def intround(value):
+    """Given a float returns a rounded int. Should give the same result on
+    both Py2/3
+    """
+
+    return int(decimal.Decimal.from_float(
+        value).to_integral_value(decimal.ROUND_HALF_EVEN))
 
 
 def is_fileobj(fileobj):
@@ -214,10 +225,24 @@ def _openfile(instance, filething, filename, fileobj, writable, create):
         yield FileThing(fileobj, filename, filename or fileobj_name(fileobj))
     elif filename is not None:
         verify_filename(filename)
+
+        inmemory_fileobj = False
         try:
             fileobj = open(filename, "rb+" if writable else "rb")
         except IOError as e:
-            if create and e.errno == errno.ENOENT:
+            if writable and e.errno == errno.EOPNOTSUPP:
+                # Some file systems (gvfs over fuse) don't support opening
+                # files read/write. To make things still work read the whole
+                # file into an in-memory file like object and write it back
+                # later.
+                # https://github.com/quodlibet/mutagen/issues/300
+                try:
+                    with open(filename, "rb") as fileobj:
+                        fileobj = BytesIO(fileobj.read())
+                except IOError as e2:
+                    raise MutagenError(e2)
+                inmemory_fileobj = True
+            elif create and e.errno == errno.ENOENT:
                 assert writable
                 try:
                     fileobj = open(filename, "wb+")
@@ -228,6 +253,15 @@ def _openfile(instance, filething, filename, fileobj, writable, create):
 
         with fileobj as fileobj:
             yield FileThing(fileobj, filename, filename)
+
+            if inmemory_fileobj:
+                assert writable
+                data = fileobj.getvalue()
+                try:
+                    with open(filename, "wb") as fileobj:
+                        fileobj.write(data)
+                except IOError as e:
+                    raise MutagenError(e)
     else:
         raise TypeError("Missing filename or fileobj argument")
 
@@ -533,6 +567,19 @@ def _fill_cdata(cls):
                 if s.size == 1:
                     esuffix = ""
                 bits = str(s.size * 8)
+
+                if unsigned:
+                    max_ = 2 ** (s.size * 8) - 1
+                    min_ = 0
+                else:
+                    max_ = 2 ** (s.size * 8 - 1) - 1
+                    min_ = - 2 ** (s.size * 8 - 1)
+
+                funcs["%s%s_min" % (prefix, name)] = min_
+                funcs["%s%s_max" % (prefix, name)] = max_
+                funcs["%sint%s_min" % (prefix, bits)] = min_
+                funcs["%sint%s_max" % (prefix, bits)] = max_
+
                 funcs["%s%s%s" % (prefix, name, esuffix)] = unpack
                 funcs["%sint%s%s" % (prefix, bits, esuffix)] = unpack
                 funcs["%s%s%s_from" % (prefix, name, esuffix)] = unpack_from
@@ -585,7 +632,7 @@ def get_size(fileobj):
 
 
 def read_full(fileobj, size):
-    """Like fileobj.read but raises IOError if no all requested data is
+    """Like fileobj.read but raises IOError if not all requested data is
     returned.
 
     If you want to distinguish IOError and the EOS case, better handle

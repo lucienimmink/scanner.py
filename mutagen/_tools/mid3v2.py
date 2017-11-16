@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-# Pretend to be /usr/bin/id3v2 from id3lib, sort of.
 # Copyright 2005 Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+"""Pretend to be /usr/bin/id3v2 from id3lib, sort of."""
 
 import sys
 import codecs
@@ -281,6 +283,19 @@ def write_files(edits, filenames, escape):
                         frame = mutagen.id3.COMM(
                             encoding=3, text=value, lang=lang, desc=desc)
                         id3.add(frame)
+                elif frame == "USLT":
+                    for value in vlist:
+                        values = string_split(value, ":")
+                        if len(values) == 1:
+                            value, desc, lang = values[0], "", "eng"
+                        elif len(values) == 2:
+                            desc, value, lang = values[0], values[1], "eng"
+                        else:
+                            value = ":".join(values[1:-1])
+                            desc, lang = values[0], values[-1]
+                        frame = mutagen.id3.USLT(
+                            encoding=3, text=value, lang=lang, desc=desc)
+                        id3.add(frame)
                 elif frame == "UFID":
                     for value in vlist:
                         values = string_split(value, ":")
@@ -428,7 +443,8 @@ def main(argv):
         if (issubclass(frame, mutagen.id3.TextFrame)
                 or issubclass(frame, mutagen.id3.UrlFrame)
                 or issubclass(frame, mutagen.id3.POPM)
-                or frame in (mutagen.id3.APIC, mutagen.id3.UFID)):
+                or frame in (mutagen.id3.APIC, mutagen.id3.UFID,
+                             mutagen.id3.USLT)):
             parser.add_option(
                 "--" + key, action="callback", help=SUPPRESS_HELP,
                 type='string', metavar="value",  # optparse blows up with this

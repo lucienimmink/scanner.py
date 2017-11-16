@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """True Audio audio stream information and tags.
 
 True Audio is a lossless format designed for real-time encoding and
 decoding. This module is based on the documentation at
-http://www.true-audio.com/TTA_Lossless_Audio_Codec\_-_Format_Description
+http://www.true-audio.com/TTA_Lossless_Audio_Codec_-_Format_Description
 
 True Audio files use ID3 tags.
 """

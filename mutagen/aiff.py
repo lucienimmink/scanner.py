@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2014  Evan Purkhiser
 #               2014  Ben Ockmore
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """AIFF audio stream information and tags."""
 
@@ -41,6 +41,14 @@ def is_valid_chunk_id(id):
 
     return ((len(id) <= 4) and (min(id) >= u' ') and
             (max(id) <= u'~'))
+
+
+def assert_valid_chunk_id(id):
+
+    assert isinstance(id, text_type)
+
+    if not is_valid_chunk_id(id):
+        raise ValueError("AIFF key must be four ASCII characters.")
 
 
 def read_float(data):  # 10 bytes
@@ -167,20 +175,14 @@ class IFFFile(object):
     def __contains__(self, id_):
         """Check if the IFF file contains a specific chunk"""
 
-        assert isinstance(id_, text_type)
-
-        if not is_valid_chunk_id(id_):
-            raise KeyError("AIFF key must be four ASCII characters.")
+        assert_valid_chunk_id(id_)
 
         return id_ in self.__chunks
 
     def __getitem__(self, id_):
         """Get a chunk from the IFF file"""
 
-        assert isinstance(id_, text_type)
-
-        if not is_valid_chunk_id(id_):
-            raise KeyError("AIFF key must be four ASCII characters.")
+        assert_valid_chunk_id(id_)
 
         try:
             return self.__chunks[id_]
@@ -191,20 +193,14 @@ class IFFFile(object):
     def __delitem__(self, id_):
         """Remove a chunk from the IFF file"""
 
-        assert isinstance(id_, text_type)
-
-        if not is_valid_chunk_id(id_):
-            raise KeyError("AIFF key must be four ASCII characters.")
+        assert_valid_chunk_id(id_)
 
         self.__chunks.pop(id_).delete()
 
     def insert_chunk(self, id_):
         """Insert a new chunk at the end of the IFF file"""
 
-        assert isinstance(id_, text_type)
-
-        if not is_valid_chunk_id(id_):
-            raise KeyError("AIFF key must be four ASCII characters.")
+        assert_valid_chunk_id(id_)
 
         self.__fileobj.seek(self.__next_offset)
         self.__fileobj.write(pack('>4si', id_.ljust(4).encode('ascii'), 0))

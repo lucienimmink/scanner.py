@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of version 2 of the GNU General Public License as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Easier access to ID3 tags.
 
@@ -203,8 +203,9 @@ class EasyID3(DictMixin, Metadata):
     filename = property(lambda s: s.__id3.filename,
                         lambda s, fn: setattr(s.__id3, 'filename', fn))
 
-    size = property(lambda s: s.__id3.size,
-                    lambda s, fn: setattr(s.__id3, 'size', s))
+    @property
+    def size(self):
+        return self.__id3.size
 
     def __getitem__(self, key):
         func = dict_match(self.Get, key.lower(), self.GetFallback)

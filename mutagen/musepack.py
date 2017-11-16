@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Lukas Lalinsky
 # Copyright (C) 2012  Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Musepack audio streams with APEv2 tags.
 
@@ -23,7 +23,7 @@ from ._compat import endswith, xrange
 from mutagen import StreamInfo
 from mutagen.apev2 import APEv2File, error, delete
 from mutagen.id3._util import BitPaddedInt
-from mutagen._util import cdata, convert_error
+from mutagen._util import cdata, convert_error, intround
 
 
 class MusepackHeaderError(error):
@@ -118,7 +118,7 @@ class MusepackInfo(StreamInfo):
 
         if not self.bitrate and self.length != 0:
             fileobj.seek(0, 2)
-            self.bitrate = int(round(fileobj.tell() * 8 / self.length))
+            self.bitrate = intround(fileobj.tell() * 8 / self.length)
 
     def __parse_sv8(self, fileobj):
         # SV8 http://trac.musepack.net/trac/wiki/SV8Specification

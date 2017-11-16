@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Read and write Ogg FLAC comments.
 
@@ -79,7 +79,9 @@ class OggFLACStreamInfo(StreamInfo):
     def _post_tags(self, fileobj):
         if self.length:
             return
-        page = OggPage.find_last(fileobj, self.serial)
+        page = OggPage.find_last(fileobj, self.serial, finishing=True)
+        if page is None:
+            raise OggFLACHeaderError
         self.length = page.position / float(self.sample_rate)
 
     def pprint(self):

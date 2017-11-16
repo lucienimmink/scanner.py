@@ -74,8 +74,15 @@ class MP3Track:
         try:
             self.disc = int(file['discnumber'][0])
         except ValueError:
-            end = file['discnumber'][0].index("/")
-            self.disc = int(file['discnumber'][0][0:end])
+            try:
+                end = file['discnumber'][0].index("/")
+                self.disc = int(file['discnumber'][0][0:end])
+            except ValueError:
+                try:
+                    end = file['discnumber'][0].index("\\")
+                    self.disc = int(file['discnumber'][0][0:end])
+                except ValueError:
+                    self.disc = None
         except KeyError:
             self.disc = None
         if skip is not True and idartist and self.album and self.title and (self.number is not None):
@@ -258,24 +265,28 @@ def parseMP3(filename, jsonFile, showInfo=True):
     global totalTime
     global nrScanned
 
-    song = MP3(filename)
-    if song is not None:
-        track = MP3Track(song, filename)
-        nrScanned = nrScanned + 1
-        perc = int((float(float(nrScanned) / float(countfiles))) * 100)
-        p.seek(0)
-        p.write(str(perc))
-        p.truncate()
-        if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
-            inc = time.time()
-            #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
-            diff = inc-start
-            if (perc > 0):
-                tot = (diff / perc) * 100
-                eta = tot - diff
-                sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
-                sys.stdout.flush()
-        jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    try: 
+        song = MP3(filename)
+        if song is not None:
+            track = MP3Track(song, filename)
+            nrScanned = nrScanned + 1
+            perc = int((float(float(nrScanned) / float(countfiles))) * 100)
+            p.seek(0)
+            p.write(str(perc))
+            p.truncate()
+            if (countfiles > 100 and nrScanned % int(countfiles/100) == 0 and showInfo):
+                inc = time.time()
+                #print "Scanner has scanned" , str(nrScanned) , "files, time elapsed =", ums(inc-start)
+                diff = inc-start
+                if (perc > 0):
+                    tot = (diff / perc) * 100
+                    eta = tot - diff
+                    sys.stdout.write("" + str(perc) + "% done, ETA: " +  ums(eta, False) + "\r")
+                    sys.stdout.flush()
+            jsonFile.append(json.dumps(track.__dict__,sort_keys=True, indent=2))
+    except MutagenError:
+        print "Error occured"
+    
 
 def parseFlac(filename, jsonFile, showInfo=True):
     global artists

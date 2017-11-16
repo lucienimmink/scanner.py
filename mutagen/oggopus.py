@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2012, 2013  Christoph Reiter
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Read and write Ogg Opus comments.
 
@@ -69,7 +69,7 @@ class OggOpusInfo(StreamInfo):
             raise OggOpusHeaderError("version %r unsupported" % major)
 
     def _post_tags(self, fileobj):
-        page = OggPage.find_last(fileobj, self.serial)
+        page = OggPage.find_last(fileobj, self.serial, finishing=True)
         if page is None:
             raise OggOpusHeaderError
         self.length = (page.position - self.__pre_skip) / float(48000)

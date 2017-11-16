@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Copyright (C) 2006  Joe Wreschnig
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 """Read and write MPEG-4 audio files with iTunes metadata.
 
@@ -290,6 +290,8 @@ class MP4Tags(DictProxy, Tags):
     * 'soco' -- composer sort order
     * 'sosn' -- show sort order
     * 'tvsh' -- show name
+    * '\\xa9wrk' -- work
+    * '\\xa9mvn' -- movement
 
     Boolean values:
 
@@ -302,9 +304,21 @@ class MP4Tags(DictProxy, Tags):
     * 'trkn' -- track number, total tracks
     * 'disk' -- disc number, total discs
 
+    Integer values:
+
+    * 'tmpo' -- tempo/BPM
+    * '\\xa9mvc' -- Movement Count
+    * '\\xa9mvi' -- Movement Index
+    * 'shwm' -- work/movement
+    * 'stik' -- Media Kind
+    * 'rtng' -- Content Rating
+    * 'tves' -- TV Episode
+    * 'tvsn' -- TV Season
+    * 'plID', 'cnID', 'geID', 'atID', 'sfID', 'cmID', 'akID' -- Various iTunes
+      Internal IDs
+
     Others:
 
-    * 'tmpo' -- tempo/BPM, 16 bit int
     * 'covr' -- cover artwork, list of MP4Cover objects (which are
       tagged strs)
     * 'gnre' -- ID3v1 genre. Not supported, use '\\xa9gen' instead.
@@ -369,10 +383,12 @@ class MP4Tags(DictProxy, Tags):
         atom_name = _key2name(key)[:4]
         if atom_name in self.__atoms:
             render_func = self.__atoms[atom_name][1]
+            render_args = self.__atoms[atom_name][2:]
         else:
             render_func = type(self).__render_text
+            render_args = []
 
-        return render_func(self, key, value)
+        return render_func(self, key, value, *render_args)
 
     @convert_error(IOError, error)
     @loadfile(writable=True)
@@ -664,30 +680,59 @@ class MP4Tags(DictProxy, Tags):
         key = _name2key(b"\xa9gen")
         self.__add(key, values)
 
-    def __parse_tempo(self, atom, data):
+    def __parse_integer(self, atom, data):
         values = []
         for version, flags, data in self.__parse_data(atom, data):
-            # version = 0, flags = 0 or 21
-            if len(data) != 2:
-                raise MP4MetadataValueError("invalid tempo")
-            values.append(cdata.ushort_be(data))
+            if version != 0:
+                raise MP4MetadataValueError("unsupported version")
+            if flags not in (AtomDataType.IMPLICIT, AtomDataType.INTEGER):
+                raise MP4MetadataValueError("unsupported type")
+
+            if len(data) == 1:
+                value = cdata.int8(data)
+            elif len(data) == 2:
+                value = cdata.int16_be(data)
+            elif len(data) == 3:
+                value = cdata.int32_be(data + b"\x00") >> 8
+            elif len(data) == 4:
+                value = cdata.int32_be(data)
+            elif len(data) == 8:
+                value = cdata.int64_be(data)
+            else:
+                raise MP4MetadataValueError(
+                    "invalid value size %d" % len(data))
+            values.append(value)
+
         key = _name2key(atom.name)
         self.__add(key, values)
 
-    def __render_tempo(self, key, value):
+    def __render_integer(self, key, value, min_bytes):
+        assert min_bytes in (1, 2, 4, 8)
+
+        data_list = []
         try:
-            if len(value) == 0:
-                return self.__render_data(key, 0, AtomDataType.INTEGER, b"")
+            for v in value:
+                # We default to the int size of the usual values written
+                # by itunes for compatibility.
+                if cdata.int8_min <= v <= cdata.int8_max and min_bytes <= 1:
+                    data = cdata.to_int8(v)
+                if cdata.int16_min <= v <= cdata.int16_max and min_bytes <= 2:
+                    data = cdata.to_int16_be(v)
+                elif cdata.int32_min <= v <= cdata.int32_max and \
+                        min_bytes <= 4:
+                    data = cdata.to_int32_be(v)
+                elif cdata.int64_min <= v <= cdata.int64_max and \
+                        min_bytes <= 8:
+                    data = cdata.to_int64_be(v)
+                else:
+                    raise MP4MetadataValueError(
+                        "value out of range: %r" % value)
+                data_list.append(data)
 
-            if (min(value) < 0) or (max(value) >= 2 ** 16):
-                raise MP4MetadataValueError(
-                    "invalid 16 bit integers: %r" % value)
-        except TypeError:
-            raise MP4MetadataValueError(
-                "tmpo must be a list of 16 bit integers")
+        except (TypeError, ValueError, cdata.error) as e:
+            raise MP4MetadataValueError(e)
 
-        values = [cdata.to_ushort_be(v) for v in value]
-        return self.__render_data(key, 0, AtomDataType.INTEGER, values)
+        return self.__render_data(key, 0, AtomDataType.INTEGER, data_list)
 
     def __parse_bool(self, atom, data):
         for version, flags, data in self.__parse_data(atom, data):
@@ -789,10 +834,24 @@ class MP4Tags(DictProxy, Tags):
         b"trkn": (__parse_pair, __render_pair),
         b"disk": (__parse_pair, __render_pair_no_trailing),
         b"gnre": (__parse_genre, None),
-        b"tmpo": (__parse_tempo, __render_tempo),
+        b"plID": (__parse_integer, __render_integer, 8),
+        b"cnID": (__parse_integer, __render_integer, 4),
+        b"geID": (__parse_integer, __render_integer, 4),
+        b"atID": (__parse_integer, __render_integer, 4),
+        b"sfID": (__parse_integer, __render_integer, 4),
+        b"cmID": (__parse_integer, __render_integer, 4),
+        b"akID": (__parse_integer, __render_integer, 1),
+        b"tvsn": (__parse_integer, __render_integer, 4),
+        b"tves": (__parse_integer, __render_integer, 4),
+        b"tmpo": (__parse_integer, __render_integer, 2),
+        b"\xa9mvi": (__parse_integer, __render_integer, 2),
+        b"\xa9mvc": (__parse_integer, __render_integer, 2),
         b"cpil": (__parse_bool, __render_bool),
         b"pgap": (__parse_bool, __render_bool),
         b"pcst": (__parse_bool, __render_bool),
+        b"shwm": (__parse_integer, __render_integer, 1),
+        b"stik": (__parse_integer, __render_integer, 1),
+        b"rtng": (__parse_integer, __render_integer, 1),
         b"covr": (__parse_cover, __render_cover),
         b"purl": (__parse_text, __render_text),
         b"egid": (__parse_text, __render_text),
