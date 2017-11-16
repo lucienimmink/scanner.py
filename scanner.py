@@ -45,7 +45,10 @@ class MP3Track:
             idartist = self.artist
         if self.albumartist is not None:
             idartist = self.albumartist
-        self.album = file['album'][0]
+        try:
+            self.album = file['album'][0]
+        except KeyError:
+            self.album = None
         self.year = None
         try:
             self.year = file['date'][0]
