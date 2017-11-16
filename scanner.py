@@ -52,9 +52,12 @@ class MP3Track:
         except KeyError:
             self.year = 0
         try:
-            self.number = int(file['tracknumber'][0][0])
+            self.number = int(file['tracknumber'][0])
+        except ValueError:
+            end = file['tracknumber'][0].index("/")
+            self.number = int(file['tracknumber'][0][0:end])
         except KeyError:
-            self.number = 0
+            self.number = None
         try:
             self.title = file['title'][0]
         except KeyError:
@@ -68,9 +71,10 @@ class MP3Track:
         try:
             self.disc = int(file['discnumber'][0])
         except ValueError:
-            self.disc = 1
+            end = file['discnumber'][0].index("/")
+            self.disc = int(file['discnumber'][0][0:end])
         except KeyError:
-            self.disc = 1
+            self.disc = None
         if skip is not True and idartist and self.album and self.title and (self.number is not None):
             self.id = base64.b64encode((_force_unicode(idartist, 'utf-8') + _force_unicode(self.album, 'utf-8') + str(self.number) + _force_unicode(self.title, 'utf-8')).encode('utf-8') + '_mp3')
         else:
