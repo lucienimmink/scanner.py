@@ -1,1 +1,1 @@
-__all__ = ["FlacTrack", "MP3Track"]
+__all__ = ["FlacTrack", "Mp3Track", "Mp4Track"]
