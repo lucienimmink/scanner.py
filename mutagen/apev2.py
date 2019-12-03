@@ -32,7 +32,12 @@ __all__ = ["APEv2", "APEv2File", "Open", "delete"]
 
 import sys
 import struct
-from collections import MutableSequence
+try:
+    # Python 3
+    from collections.abc import MutableSequence
+except ImportError:
+    # Python 2.7
+    from collections import MutableSequence
 
 from ._compat import (cBytesIO, PY3, text_type, PY2, reraise, swap_to_string,
                       xrange)
@@ -419,7 +424,7 @@ class APEv2(_CIDictProxy, Metadata):
 
     @convert_error(IOError, error)
     @loadfile(writable=True, create=True)
-    def save(self, filething):
+    def save(self, filething=None):
         """Save changes to a file.
 
         If no filename is given, the one most recently loaded is used.
@@ -459,7 +464,7 @@ class APEv2(_CIDictProxy, Metadata):
         # "APE tags items should be sorted ascending by size... This is
         # not a MUST, but STRONGLY recommended. Actually the items should
         # be sorted by importance/byte, but this is not feasible."
-        tags.sort(key=len)
+        tags.sort(key=lambda tag: (len(tag), tag))
         num_tags = len(tags)
         tags = b"".join(tags)
 
@@ -481,7 +486,7 @@ class APEv2(_CIDictProxy, Metadata):
 
     @convert_error(IOError, error)
     @loadfile(writable=True)
-    def delete(self, filething):
+    def delete(self, filething=None):
         """Remove tags from a file."""
 
         fileobj = filething.fileobj

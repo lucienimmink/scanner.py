@@ -306,7 +306,7 @@ class MPEGInfo(StreamInfo):
         bitrate (`int`): audio bitrate, in bits per second.
             In case :attr:`bitrate_mode` is :attr:`BitrateMode.UNKNOWN` the
             bitrate is guessed based on the first frame.
-        sample_rate (`int`) audio sample rate, in Hz
+        sample_rate (`int`): audio sample rate, in Hz
         encoder_info (`mutagen.text`): a string containing encoder name and
             possibly version. In case a lame tag is present this will start
             with ``"LAME "``, if unknown it is empty, otherwise the
@@ -357,7 +357,7 @@ class MPEGInfo(StreamInfo):
 
         # find a sync in the first 1024K, give up after some invalid syncs
         max_read = 1024 * 1024
-        max_syncs = 1000
+        max_syncs = 1500
         enough_frames = 4
         min_frames = 2
 

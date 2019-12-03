@@ -11,6 +11,7 @@
 import sys
 import codecs
 import mimetypes
+import warnings
 
 from optparse import SUPPRESS_HELP
 
@@ -133,12 +134,16 @@ def value_from_fsnative(arg, escape):
     assert isinstance(arg, fsnative)
 
     if escape:
-        bytes_ = fsn2bytes(arg, "utf-8")
+        bytes_ = fsn2bytes(arg)
         if PY2:
             bytes_ = bytes_.decode("string_escape")
         else:
-            bytes_ = codecs.escape_decode(bytes_)[0]
-        arg = bytes2fsn(bytes_, "utf-8")
+            # With py3.7 this has started to warn for invalid escapes, but we
+            # don't control the input so ignore it.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                bytes_ = codecs.escape_decode(bytes_)[0]
+        arg = bytes2fsn(bytes_)
 
     text = fsn2text(arg, strict=True)
     return text
@@ -315,9 +320,20 @@ def write_files(edits, filenames, escape):
                         frame = mutagen.id3.TXXX(
                             encoding=3, text=value, desc=desc)
                         id3.add(frame)
+                elif frame == "WXXX":
+                    for value in vlist:
+                        values = string_split(value, ":", 1)
+                        if len(values) == 1:
+                            desc, value = "", values[0]
+                        else:
+                            desc, value = values[0], values[1]
+                        frame = mutagen.id3.WXXX(
+                            encoding=3, url=value, desc=desc)
+                        id3.add(frame)
                 elif issubclass(mutagen.id3.Frames[frame],
                                 mutagen.id3.UrlFrame):
-                    frame = mutagen.id3.Frames[frame](encoding=3, url=vlist)
+                    frame = mutagen.id3.Frames[frame](
+                        encoding=3, url=vlist[-1])
                     id3.add(frame)
                 else:
                     frame = mutagen.id3.Frames[frame](encoding=3, text=vlist)

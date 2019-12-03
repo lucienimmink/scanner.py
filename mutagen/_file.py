@@ -97,7 +97,7 @@ class FileType(DictMixin):
             return self.tags.keys()
 
     @loadfile(writable=True)
-    def delete(self, filething):
+    def delete(self, filething=None):
         """delete(filething=None)
 
         Remove tags from a file.
@@ -113,14 +113,14 @@ class FileType(DictMixin):
         Does nothing if the file has no tags.
 
         Raises:
-            MutagenError: if deleting wasn't possible
+            mutagen.MutagenError: if deleting wasn't possible
         """
 
         if self.tags is not None:
             return self.tags.delete(filething)
 
     @loadfile(writable=True)
-    def save(self, filething, **kwargs):
+    def save(self, filething=None, **kwargs):
         """save(filething=None, **kwargs)
 
         Save metadata tags.
@@ -150,14 +150,15 @@ class FileType(DictMixin):
         """Adds new tags to the file.
 
         Raises:
-            MutagenError: if tags already exist or adding is not possible.
+            mutagen.MutagenError:
+                if tags already exist or adding is not possible.
         """
 
         raise NotImplementedError
 
     @property
     def mime(self):
-        """A list of mime types (`text`)"""
+        """A list of mime types (:class:`mutagen.text`)"""
 
         mimes = []
         for Kind in type(self).__mro__:
@@ -171,7 +172,7 @@ class FileType(DictMixin):
         """Returns a score for how likely the file can be parsed by this type.
 
         Args:
-            filename (path): a file path
+            filename (fspath): a file path
             fileobj (fileobj): a file object open in rb mode. Position is
                 undefined
             header (bytes): data of undefined length, starts with the start of
@@ -263,12 +264,14 @@ def File(filething, options=None, easy=False):
         from mutagen.optimfrog import OptimFROG
         from mutagen.aiff import AIFF
         from mutagen.aac import AAC
+        from mutagen.ac3 import AC3
         from mutagen.smf import SMF
+        from mutagen.tak import TAK
         from mutagen.dsf import DSF
         options = [MP3, TrueAudio, OggTheora, OggSpeex, OggVorbis, OggFLAC,
                    FLAC, AIFF, APEv2File, MP4, ID3FileType, WavPack,
-                   Musepack, MonkeysAudio, OptimFROG, ASF, OggOpus, AAC,
-                   SMF, DSF]
+                   Musepack, MonkeysAudio, OptimFROG, ASF, OggOpus, AAC, AC3,
+                   SMF, TAK, DSF]
 
     if not options:
         return None

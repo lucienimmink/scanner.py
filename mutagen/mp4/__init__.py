@@ -311,6 +311,7 @@ class MP4Tags(DictProxy, Tags):
     * '\\xa9mvi' -- Movement Index
     * 'shwm' -- work/movement
     * 'stik' -- Media Kind
+    * 'hdvd' -- HD Video
     * 'rtng' -- Content Rating
     * 'tves' -- TV Episode
     * 'tvsn' -- TV Season
@@ -392,7 +393,7 @@ class MP4Tags(DictProxy, Tags):
 
     @convert_error(IOError, error)
     @loadfile(writable=True)
-    def save(self, filething, padding=None):
+    def save(self, filething=None, padding=None):
 
         values = []
         items = sorted(self.items(), key=lambda kv: _item_sort_key(*kv))
@@ -716,7 +717,8 @@ class MP4Tags(DictProxy, Tags):
                 # by itunes for compatibility.
                 if cdata.int8_min <= v <= cdata.int8_max and min_bytes <= 1:
                     data = cdata.to_int8(v)
-                if cdata.int16_min <= v <= cdata.int16_max and min_bytes <= 2:
+                elif cdata.int16_min <= v <= cdata.int16_max and \
+                        min_bytes <= 2:
                     data = cdata.to_int16_be(v)
                 elif cdata.int32_min <= v <= cdata.int32_max and \
                         min_bytes <= 4:
@@ -851,6 +853,7 @@ class MP4Tags(DictProxy, Tags):
         b"pcst": (__parse_bool, __render_bool),
         b"shwm": (__parse_integer, __render_integer, 1),
         b"stik": (__parse_integer, __render_integer, 1),
+        b"hdvd": (__parse_integer, __render_integer, 1),
         b"rtng": (__parse_integer, __render_integer, 1),
         b"covr": (__parse_cover, __render_cover),
         b"purl": (__parse_text, __render_text),
@@ -1067,7 +1070,6 @@ class MP4(FileType):
 
         if not MP4Tags._can_load(atoms):
             self.tags = None
-            self._padding = 0
         else:
             try:
                 self.tags = self.MP4Tags(atoms, fileobj)
@@ -1075,8 +1077,13 @@ class MP4(FileType):
                 raise
             except Exception as err:
                 reraise(MP4MetadataError, err, sys.exc_info()[2])
-            else:
-                self._padding = self.tags._padding
+
+    @property
+    def _padding(self):
+        if self.tags is None:
+            return 0
+        else:
+            return self.tags._padding
 
     def save(self, *args, **kwargs):
         """save(filething=None, padding=None)"""

@@ -17,21 +17,20 @@ parser = argparse.ArgumentParser(
     'Scans a given directory for MP3\'s and places the output file in an optional directory'
 )
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
-parser.add_argument(
-    '--destpath',
-    metavar='destination path',
-    help='directory to place the output json in')
-parser.add_argument('--stdout', metavar='stdout', help='print status to stdout or not')
+parser.add_argument('--destpath',
+                    metavar='destination path',
+                    help='directory to place the output json in')
+parser.add_argument('--stdout',
+                    metavar='stdout',
+                    help='print status to stdout or not')
 args = parser.parse_args()
 
 rootpath = args.scanpath
 destpath = args.destpath or args.scanpath
 showInfo = args.stdout == 'True'
-
 """ logging """
 logging.basicConfig(filename='scanner.log', level=logging.DEBUG)
 
-f = codecs.open(destpath + '/node-music.json', 'w', "utf-8")
 p = codecs.open(destpath + '/progress.txt', 'w', "utf-8")
 
 jsonFile = list()
@@ -40,7 +39,7 @@ start = time.time()
 
 
 def find_files(directory, pattern):
-    for root, dirs, files in os.walk(directory):
+    for root, folder, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern):
                 yield os.path.join(root, basename)
@@ -113,9 +112,11 @@ countfiles = sum(1 for e in allfiles)
 countfiles += sum(1 for e in allfilesflac)
 countfiles += sum(1 for e in allfilesm4a)
 
+inc = time.time()
+diff = inc - start
+print "Found {0} media files in {1}".format(countfiles, utils.ums(diff, False))
 print "Starting scan for {0} media files in '{1}'".format(countfiles, rootpath)
 for filename in find_files(rootpath, '*.mp3'):
-    # parseFile(filename, jsonFile)
     parseMP3(filename)
 
 for filename in find_files(rootpath, '*.flac'):
@@ -123,7 +124,7 @@ for filename in find_files(rootpath, '*.flac'):
 
 for filename in find_files(rootpath, '*.m4a'):
     parseM4A(filename)
-
+f = codecs.open(destpath + '/node-music.json', 'w', "utf-8")
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
 p.seek(0)

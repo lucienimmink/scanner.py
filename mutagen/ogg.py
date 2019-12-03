@@ -50,7 +50,7 @@ class OggPage(object):
         offset (`int` or `None`): offset this page was read from (default None)
         complete (`bool`): if the last packet on this page is complete
             (default True)
-        packets (List[`bytes`]): list of raw packet data (default [])
+        packets (list[bytes]): list of raw packet data (default [])
 
     Note that if 'complete' is false, the next page's 'continued'
     property must be true (so set both when constructing pages).
@@ -216,7 +216,7 @@ class OggPage(object):
         so also the CRC.
 
         If an error occurs (e.g. non-Ogg data is found), fileobj will
-        be left pointing to the place in the stream the error occured,
+        be left pointing to the place in the stream the error occurred,
         but the invalid data will be left intact (since this function
         does not change the total file size).
         """
@@ -535,7 +535,7 @@ class OggFileType(FileType):
             raise self._Error("no appropriate stream found")
 
     @loadfile(writable=True)
-    def delete(self, filething):
+    def delete(self, filething=None):
         """delete(filething=None)
 
         Remove tags from a file.
@@ -567,7 +567,7 @@ class OggFileType(FileType):
         raise self._Error
 
     @loadfile(writable=True)
-    def save(self, filething, padding=None):
+    def save(self, filething=None, padding=None):
         """save(filething=None, padding=None)
 
         Save a tag to a file.
@@ -576,7 +576,7 @@ class OggFileType(FileType):
 
         Args:
             filething (filething)
-            padding (PaddingFunction)
+            padding (:obj:`mutagen.PaddingFunction`)
         Raises:
             mutagen.MutagenError
         """
