@@ -7,7 +7,7 @@ from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.mp3 import EasyMP3 as MP3
 from mutagen._util import MutagenError
-import scanner._utils as utils
+from scanner._utils import Time
 import scanner.FlacTrack as FlacTrack
 import scanner.Mp3Track as Mp3Track
 import scanner.Mp4Track as Mp4Track
@@ -62,7 +62,7 @@ def updateInfo():
             tot = (diff / perc) * 100
             eta = tot - diff
             sys.stdout.write("" + str(perc) + "% done, ETA: " +
-                             utils.ums(eta, False) + "\r")
+                             Time.ums(eta, False) + "\r")
             sys.stdout.flush()
 
 
@@ -76,7 +76,7 @@ def parseMP3(filename):
             jsonFile.append(
                 json.dumps(track.__dict__, sort_keys=True, indent=2))
     except MutagenError:
-        print "Error occured"
+        print("Error occured")
 
 
 def parseFlac(filename):
@@ -89,7 +89,7 @@ def parseFlac(filename):
             jsonFile.append(
                 json.dumps(track.__dict__, sort_keys=True, indent=2))
     except MutagenError:
-        print "Error occured"
+        print("Error occured")
 
 
 def parseM4A(filename):
@@ -102,7 +102,7 @@ def parseM4A(filename):
             jsonFile.append(
                 json.dumps(track.__dict__, sort_keys=True, indent=2))
     except MutagenError:
-        print "Error occured"
+        print("Error occured")
 
 
 allfiles = find_files(rootpath, '*.mp3')
@@ -114,8 +114,8 @@ countfiles += sum(1 for e in allfilesm4a)
 
 inc = time.time()
 diff = inc - start
-print "Found {0} media files in {1}".format(countfiles, utils.ums(diff, False))
-print "Starting scan for {0} media files in '{1}'".format(countfiles, rootpath)
+print("Found {0} media files in {1}".format(countfiles, Time.ums(diff, False)))
+print("Starting scan for {0} media files in '{1}'".format(countfiles, rootpath))
 for filename in find_files(rootpath, '*.mp3'):
     parseMP3(filename)
 
@@ -132,4 +132,4 @@ p.write("100")
 p.truncate()
 p.close()
 end = time.time()
-print "Done scanning, time taken: {0}".format(utils.ums(end - start, False))
+print("Done scanning, time taken: {0}".format(Time.ums(end - start, False)))

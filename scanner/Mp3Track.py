@@ -2,7 +2,7 @@
 # -*- coding: utf8 -*-
 import os
 import base64
-import _utils as utils
+from scanner._utils import force_unicode
 
 
 class Track:
@@ -56,7 +56,8 @@ class Track:
             skip = True
 
         self.duration = mfile.info.length * 1000
-        self.path = utils.force_unicode(path, "utf-8").replace("\\", "\\\\")
+        #self.path = path.replace("\\", "\\\\")
+        self.path = path
         self.path = self.path[len(rootpath):]
         self.disc = None
         try:
@@ -75,16 +76,10 @@ class Track:
             self.disc = None
         if skip is not True and idartist and self.album and self.title and (
                 self.number is not None):
-            self.id = base64.b64encode(
-                (utils.force_unicode(idartist, 'utf-8') +
-                 utils.force_unicode(self.album, 'utf-8') + str(self.number) +
-                 utils.force_unicode(self.title, 'utf-8')).encode('utf-8') + '_mp3')
+            self.id = base64.b64encode(bytes(idartist + self.album + str(self.number) + self.title  + '_mp3', 'utf-8')).decode()
         else:
             if skip is not True and idartist and self.album and self.title:
-                self.id = base64.b64encode(
-                    (utils.force_unicode(idartist, 'utf-8') +
-                     utils.force_unicode(self.album, 'utf-8') + utils.force_unicode(
-                         self.title, 'utf-8')).encode('utf-8') + '_mp3')
+                self.id = base64.b64encode(bytes(idartist + self.album + self.title  + '_mp3', 'utf-8')).decode()
         self.modified = os.path.getmtime(os.path.split(path)[0]) * 1000
         self.type = 'mp3'
 
