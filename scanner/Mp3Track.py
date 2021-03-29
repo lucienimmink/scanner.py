@@ -59,6 +59,8 @@ class Track:
         #self.path = path.replace("\\", "\\\\")
         self.path = path
         self.path = self.path[len(rootpath):]
+        self.trackgain = mfile.info.track_gain
+        self.albumgain = mfile.info.album_gain
         self.disc = None
         try:
             self.disc = int(mfile['discnumber'][0])
