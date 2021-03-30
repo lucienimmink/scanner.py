@@ -3,12 +3,12 @@
 
 
 class Time:
-    def ums(self, i, ignoreZero=True):
-        i = int(i)
-        hours = i / 3600
+    def ums(i, ignoreZero=True):
+        i = float(i)
+        hours = int(i / 3600)
         rest = i % 3600
-        minutes = rest / 60
-        seconds = rest % 60
+        minutes = int(rest / 60)
+        seconds = int(rest % 60)
         if hours < 10:
             hours = "0" + str(hours)
         if minutes < 10:
