@@ -61,6 +61,8 @@ class Track:
         self.path = self.path[len(rootpath):]
         self.trackgain = mfile.info.track_gain
         self.albumgain = mfile.info.album_gain
+        if self.albumgain is not None:
+            self.albumgain = self.albumgain * -1
         self.disc = None
         try:
             self.disc = int(mfile['discnumber'][0])

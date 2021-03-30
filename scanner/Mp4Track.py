@@ -32,6 +32,16 @@ class Track:
         #self.path = path.replace("\\", "\\\\")
         self.path = path
         self.path = self.path[len(rootpath):]
+        self.trackgain = None
+        try:
+            self.trackgain = self.dbToNum(mfile['----:com.apple.iTunes:replaygain_track_gain'][0].decode('utf-8'))
+        except KeyError:
+            self.trackgain = None
+        self.albumgain = None
+        try:
+            self.albumgain = self.dbToNum(mfile['----:com.apple.iTunes:replaygain_album_gain'][0].decode('utf-8'))
+        except KeyError:
+            self.albumgain = None
         self.disc = None
         try:
             self.disc = mfile['disk'][0][0]
@@ -48,3 +58,6 @@ class Track:
 
     def time(self):
         return self.duration
+
+    def dbToNum(self, string):
+        return float(string[: -3])

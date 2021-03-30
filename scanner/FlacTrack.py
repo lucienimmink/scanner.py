@@ -33,12 +33,12 @@ class Track:
         self.path = self.path[len(rootpath):]
         self.trackgain = None
         try:
-            self.trackgain = mfile['replaygain_track_gain'][0]
+            self.trackgain = self.dbToNum(mfile['replaygain_track_gain'][0])
         except KeyError:
             self.trackgain = None
         self.albumgain = None
         try:
-            self.albumgain = mfile['replaygain_album_gain'][0]
+            self.albumgain = self.dbToNum(mfile['replaygain_album_gain'][0])
         except KeyError:
             self.albumgain = None
         self.disc = None
@@ -57,3 +57,6 @@ class Track:
 
     def time(self):
         return self.duration
+
+    def dbToNum(self, string):
+        return float(string[: -3])
