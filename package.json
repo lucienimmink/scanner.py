@@ -1,6 +1,6 @@
 {
     "name": "scanner.py",
-    "version": "1.3.0",
+    "version": "2.0.0",
     "description": "python based media(mp3/flac/mp4) scanner",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"

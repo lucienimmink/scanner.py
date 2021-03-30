@@ -16,6 +16,7 @@ The output JSON is 1 array with objects holding the track info
 {
   "album": "Adrenaline Mob",
   "albumartist": null,
+  "albumgain": -9.9,
   "artist": "Adrenaline Mob",
   "disc": null,
   "duration": 278000,
@@ -24,6 +25,7 @@ The output JSON is 1 array with objects holding the track info
   "number": 1,
   "path": "Adrenaline Mob/Adrenaline Mob - Adrenaline Mob EP/Adrenaline Mob - Adrenaline Mob EP - 01 - Psychosane.mp3",
   "title": "Psychosane",
+  "trackgain": -12.3,
   "year": "2011",
   "type": "mp3"
 }
