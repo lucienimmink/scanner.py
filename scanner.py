@@ -5,7 +5,7 @@
 import os, fnmatch, json, sys, codecs, time, argparse, logging
 from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
-from mutagen.mp3 import EasyMP3 as MP3
+from mutagen.mp3 import MP3
 from mutagen._util import MutagenError
 from scanner._utils import Time
 import scanner.FlacTrack as FlacTrack
