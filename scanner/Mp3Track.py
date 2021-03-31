@@ -91,6 +91,9 @@ class Track:
             self.albumgain = None
         except ValueError:
             self.albumgain = mfile.info.album_gain
+            if self.albumgain is not None:
+                # using album_gain from the xing header results in gain
+                self.albumgain = self.albumgain * -1
         self.disc = None
         try:
             self.disc = int(str(mfile.tags.getall("TPOS")[0]))
