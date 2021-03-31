@@ -34,7 +34,7 @@ class Track:
             self.album = None
         self.year = None
         try:
-            self.year = int(str(mfile.tags.getall("TDRC")[0]))
+            self.year = str(mfile.tags.getall("TDRC")[0])
         except KeyError:
             self.year = 0
         except IndexError:
