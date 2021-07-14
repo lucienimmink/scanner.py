@@ -3,7 +3,7 @@
     "version": "2.0.0",
     "description": "python based media(mp3/flac/mp4) scanner",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "python3 scanner.py ./test-files"
     },
     "repository": {
         "type": "git",
@@ -14,5 +14,6 @@
     "bugs": {
         "url": "https://github.com/lucienimmink/scanner.py/issues"
     },
-    "homepage": "https://github.com/lucienimmink/scanner.py#readme"
+    "homepage": "https://github.com/lucienimmink/scanner.py#readme",
+    "dependencies": {}
 }

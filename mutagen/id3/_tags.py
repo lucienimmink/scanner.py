@@ -371,6 +371,7 @@ class ID3Tags(DictProxy, Tags):
         timestamps = []
         old_frames = [self.pop(n, []) for n in ["TYER", "TDAT", "TIME"]]
         for y, d, t in zip_longest(*old_frames, fillvalue=u""):
+            y = y.split("-")[0] # if a full date is set in TYER split date and use index 0
             ym = re.match(r"([0-9]+)\Z", y)
             dm = re.match(r"([0-9]{2})([0-9]{2})\Z", d)
             tm = re.match(r"([0-9]{2})([0-9]{2})\Z", t)
