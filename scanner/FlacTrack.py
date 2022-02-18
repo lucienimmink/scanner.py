@@ -48,7 +48,7 @@ class Track:
             self.disc = 1
         if idartist and self.album and self.title and (self.number is
                                                        not None):
-            self.id = base64.b64encode(bytes(idartist + self.album + str(self.number) + self.title  + '_flac', 'utf-8')).decode()
+            self.id = base64.b64encode(bytes(idartist + self.album + str(self.disc) + str(self.number) + self.title  + '_flac', 'utf-8')).decode()
         else:
             if idartist and self.album and self.title:
                 self.id = base64.b64encode(bytes(idartist + self.album + self.title  + '_flac', 'utf-8')).decode()

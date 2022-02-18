@@ -113,7 +113,7 @@ class Track:
             self.disc = None
         if skip is not True and idartist and self.album and self.title and (
                 self.number is not None):
-            self.id = base64.b64encode(bytes(idartist + self.album + str(self.number) + self.title  + '_mp3', 'utf-8')).decode()
+            self.id = base64.b64encode(bytes(idartist + self.album + str(self.disc) + str(self.number) + self.title  + '_mp3', 'utf-8')).decode()
         else:
             if skip is not True and idartist and self.album and self.title:
                 self.id = base64.b64encode(bytes(idartist + self.album + self.title  + '_mp3', 'utf-8')).decode()
