@@ -6,15 +6,17 @@ import os, fnmatch, json, sys, codecs, time, argparse, logging
 from mutagen.flac import FLAC
 from mutagen.mp4 import MP4
 from mutagen.mp3 import MP3
+from mutagen.oggvorbis import OggVorbis
 from mutagen._util import MutagenError
 from scanner._utils import Time
 import scanner.FlacTrack as FlacTrack
 import scanner.Mp3Track as Mp3Track
 import scanner.Mp4Track as Mp4Track
+import scanner.OggTrack as OggTrack
 
 parser = argparse.ArgumentParser(
     description=
-    'Scans a given directory for MP3\'s and places the output file in an optional directory'
+    'Scans a given directory for music files and places the output file in an optional directory'
 )
 parser.add_argument('scanpath', metavar='scanpath', help='directory to scan')
 parser.add_argument('--destpath',
@@ -105,12 +107,27 @@ def parseM4A(filename):
         print("Error occured")
 
 
+def parseOgg(filename):
+    global jsonFile
+    try:
+        song = OggVorbis(filename)
+        if song is not None:
+            track = OggTrack.Track(song, filename, rootpath)
+            updateInfo()
+            jsonFile.append(
+                json.dumps(track.__dict__, sort_keys=True, indent=2))
+    except MutagenError:
+        print("Error occured")
+
 allfiles = find_files(rootpath, '*.mp3')
 allfilesflac = find_files(rootpath, '*.flac')
 allfilesm4a = find_files(rootpath, '*.m4a')
+allfilesogg = find_files(rootpath, '*.ogg')
+
 countfiles = sum(1 for e in allfiles)
 countfiles += sum(1 for e in allfilesflac)
 countfiles += sum(1 for e in allfilesm4a)
+countfiles += sum(1 for e in allfilesogg)
 
 inc = time.time()
 diff = inc - start
@@ -124,6 +141,10 @@ for filename in find_files(rootpath, '*.flac'):
 
 for filename in find_files(rootpath, '*.m4a'):
     parseM4A(filename)
+
+for filename in find_files(rootpath, '*.ogg'):
+    parseOgg(filename)
+
 f = codecs.open(destpath + '/node-music.json', 'w', "utf-8")
 f.write("[" + ",\n".join(jsonFile) + "]")
 f.close()
