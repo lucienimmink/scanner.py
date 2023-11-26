@@ -24,7 +24,10 @@ class Track:
             self.year = mfile['date'][0]
         except KeyError:
             self.year = 0
-        self.number = int(mfile['tracknumber'][0])
+        try:
+            self.number = int(mfile['tracknumber'][0])
+        except ValueError:
+            self.number = int(mfile['tracknumber'][0].split('/')[0]) # in case of 1/12 numbering
         self.title = mfile['title'][0]
 
         self.duration = mfile.info.length * 1000
