@@ -1,6 +1,6 @@
 {
     "name": "scanner.py",
-    "version": "2.2.1",
+    "version": "2.2.2",
     "description": "python based media(mp3/flac/mp4) scanner",
     "scripts": {
         "test": "python3 scanner.py ./test-files"
