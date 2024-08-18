@@ -11,7 +11,10 @@ class Track:
         try:
             self.artist = str(mfile.tags.getall("TPE1")[0])
         except KeyError:
-            self.artist = None
+            try:
+                self.artist = str(mfile.tags.getall("TPE2")[0])
+            except KeyError:
+                self.artist = None
         except IndexError:
             self.artist = None
         self.albumartist = None

@@ -145,6 +145,9 @@ class LAMEHeader(object):
         album_gain_adj = r.bits(9) / 10.0
         if album_gain_type == 2:
             self.album_gain_adjustment = album_gain_adj
+        else:
+            self.album_gain_adjustment = None
+
         self.encoding_flags = r.bits(4)
         self.ath_type = r.bits(4)
 

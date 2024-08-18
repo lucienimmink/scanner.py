@@ -8,7 +8,14 @@ from scanner._utils import force_unicode
 class Track:
     def __init__(self, mfile, path, rootpath):
         idartist = ''
-        self.artist = mfile['\xa9ART'][0]
+        self.artist = None
+        try:
+            self.artist = mfile['\xa9ART'][0]
+        except KeyError:
+            try:
+                self.artist = mfile['aART'][0]
+            except KeyError:
+                self.artist = None
         self.albumartist = None
         try:
             self.albumartist = mfile['aART'][0]
