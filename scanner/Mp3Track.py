@@ -114,6 +114,23 @@ class Track:
             self.disc = None
         except IndexError:
             self.disc = None
+        self.samplerate = None
+        try:
+            self.samplerate = mfile.info.sample_rate
+        except AttributeError:
+            self.samplerate = None
+        self.bitrate = None
+        try:
+            self.bitrate = mfile.info.bitrate
+        except AttributeError:
+            self.bitrate = None
+        self.bits_per_sample = 16
+        self.channels = None
+        try:
+            self.channels = mfile.info.channels
+        except AttributeError:
+            self.channels = None
+        
         if skip is not True and idartist and self.album and self.title and (
                 self.number is not None):
             self.id = base64.b64encode(bytes(idartist + self.album + str(self.disc) + str(self.number) + self.title  + '_mp3', 'utf-8')).decode()

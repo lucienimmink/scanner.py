@@ -56,6 +56,27 @@ class Track:
             self.disc = int(mfile['discnumber'][0])
         except KeyError:
             self.disc = 1
+        self.samplerate = None
+        try:
+            self.samplerate = mfile.info.sample_rate
+        except AttributeError:
+            self.samplerate = None
+        self.bitrate = None
+        try:
+            self.bitrate = mfile.info.bitrate
+        except AttributeError:
+            self.bitrate = None
+        self.bits_per_sample = None
+        try:
+            self.bits_per_sample = mfile.info.bits_per_sample
+        except AttributeError:
+            self.bits_per_sample = None
+        self.channels = None
+        try:
+            self.channels = mfile.info.channels
+        except AttributeError:
+            self.channels = None
+        
         if idartist and self.album and self.title and (self.number is
                                                        not None):
             self.id = base64.b64encode(bytes(idartist + self.album + str(self.disc) + str(self.number) + self.title  + '_flac', 'utf-8')).decode()

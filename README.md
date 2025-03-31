@@ -27,6 +27,10 @@ The output JSON is 1 array with objects holding the track info
   "title": "Psychosane",
   "trackgain": -12.3,
   "year": "2011",
-  "type": "mp3"
+  "type": "mp3",
+  "samplerate": 44100,
+  "bitrate": 320,
+  "bits_per_sample": 16,
+  "channels": 2
 }
 ```
